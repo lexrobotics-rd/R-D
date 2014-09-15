@@ -19,14 +19,14 @@ SCHPEEEEEL on how this works
 So Gyro measures the rotational velocity (to pretty good precision!).
 Our goal is to keep the rotational position at 90 degrees vertical.
 
-Therefore, PID! PID stands for Proportional, Integral, Derivative, which are the three components. Using 
-these three components, the algorithm decides how to act. Proportional is the current error. Most of the 
-correction involved is going to be looking at the current error, just because that makes sense. Integral 
-is more or less the average error, which helps account for things like gyro drift. Derivative is current 
-change in error - if you kick the balancer it'll have a sudden change in error, and Proportional will be 
+Therefore, PID! PID stands for Proportional, Integral, Derivative, which are the three components. Using
+these three components, the algorithm decides how to act. Proportional is the current error. Most of the
+correction involved is going to be looking at the current error, just because that makes sense. Integral
+is more or less the average error, which helps account for things like gyro drift. Derivative is current
+change in error - if you kick the balancer it'll have a sudden change in error, and Proportional will be
 unable to cope, but Derivative will see a large change in error and help correct any oscillations.
 
-Wikipedia has an even simpler and quite insightful way of explaining it: "P" corrects for current error, 
+Wikipedia has an even simpler and quite insightful way of explaining it: "P" corrects for current error,
 "I" for past error, and "D" for future error. In that way, it will very effectively maintain balance.
 
 
@@ -49,6 +49,11 @@ task main()
 {
 	nMotorPIDSpeedCtrl[left] = mtrSpeedReg;
 	nMotorPIDSpeedCtrl[right] = mtrSpeedReg;
+
+	PID forwardsPID;
+	initPID(forwardsPID,10,2,1);
+
+	/*
  	PID forwardsPID;
  	forwardsPID.Kp = 8;
  	forwardsPID.Ki = -1; //0
@@ -63,11 +68,13 @@ task main()
 
  	forwardsPID.integral = 0;
  	forwardsPID.prevPosition = 0;
+ 	*/
 
 	bool running = true;
 
-	init();
-	forwardsPID.integral = 0;
+	init();//Stands up and starts gyro task.
+
+	//forwardsPID.integral = 0;
 	//waitForStart();
 	StartTask(trim);
 	float leftOutput, rightOutput;
@@ -75,13 +82,10 @@ task main()
  	while(true)
  	{
  		nxtDisplayCenteredTextLine(2, "trim: %f", neutralAngle);
- 		if(forwardsAngle < -70) {
+ 		if(forwardsAngle < -70 || forwardsAngle > 70) {//If it fell over
  			init();
- 			forwardsPID.integral = 0;
- 		}
- 		else if(forwardsAngle > 70) {
- 			init();
- 			forwardsPID.integral = 0;
+ 			reset(forwardsPID);
+ 			//forwardsPID.integral = 0;
  		}
 
  		if(running) {
@@ -92,6 +96,7 @@ task main()
 			if(abs(joystick.joy1_x2)<10)
 				joystick.joy1_x2 = 0;*/
 
+			/*
 			if(joystick.joy1_y1 > 50) {
 				servo[rearFlipper] = REAR_LIFT_RAISED - 50;
 			}
@@ -103,21 +108,22 @@ task main()
  			}
  			else {
  				servo[frontFlipper] = FRONT_LIFT_RAISED;
- 			}
+ 			}*/
 
 			//forwardsOffset =  -0.005*joystick.joy1_y1;
-			forwardsOffset = 0;
-
-	 			leftOutput = rightOutput  = updatePID(forwardsPID, neutralAngle - forwardsAngle, forwardsAngle) +
-	 				HTGYROreadRot(forwardsTilt) * kVelocity;
-	 			leftOutput += kSpeed * leftOutput;
+			//forwardsOffset = 0;
+			float leftOutput, rightOutput;
+	 			leftOutput = rightOutput = updatePID(forwardsPID, neutralAngle - forwardsAngle);//, forwardsAngle);
+	 				//+ HTGYROreadRot(forwardsTilt) * kVelocity;
+	 			//leftOutput += kSpeed * leftOutput;
 	 			//leftOutput += forwardsPID.Kp * forwardsOffset;
-					leftOutput += kEncoder * (0 - nMotorEncoder[left]);
+				//leftOutput += kEncoder * (0 - nMotorEncoder[left]);
 				/*rightOutput += kEncoder * (0 - nMotorEncoder[right]);*/
-	 			if(abs(leftOutput) > 100)
-	 				leftOutput = sgn(leftOutput) * 100;
-	 			if(rightOutput > 30)
-	 				rightOutput = 30;
+
+				//if(abs(leftOutput) > 100)
+	 			//	leftOutput = sgn(leftOutput) * 100;
+	 			//if(rightOutput > 30)
+	 			//	rightOutput = 30;
 
 	 			motor[left] = leftOutput;
 	 			motor[right] = leftOutput;
@@ -139,7 +145,8 @@ task trim() {
 	}
 	wait1Msec(5);
 }
-task gyros() {
+
+task gyros() {//Updates the forwardsAngle variable with the current deviation from 90 degrees.
 	float curRateForwards = 0;
 	float curRateSide = 0;
 	float delTime = 0;
@@ -172,4 +179,6 @@ void init() {
  	wait1Msec(200);
 	nMotorEncoder[left] = 0;
 	nMotorEncoder[right] = 0;
+	servo[rearFlipper] = REAR_LIFT_RAISED;
+ 	servo[frontFlipper] = FRONT_LIFT_RAISED;
 }
