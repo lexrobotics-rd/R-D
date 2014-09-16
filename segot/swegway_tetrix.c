@@ -28,157 +28,116 @@ unable to cope, but Derivative will see a large change in error and help correct
 
 Wikipedia has an even simpler and quite insightful way of explaining it: "P" corrects for current error,
 "I" for past error, and "D" for future error. In that way, it will very effectively maintain balance.
-
-
 */
 
+//Forward declarations
 task gyros();
 void init();
-task trim();
+task steer();
 
-float forwardsAngle = 0;
-
+//Degree headings for 180-degree "lift" servos
 const int REAR_LIFT_RAISED = 240;
 const int REAR_LIFT_DEPRESSED = 40;
 const int FRONT_LIFT_RAISED = abs(REAR_LIFT_RAISED - 255);
 const int FRONT_LIFT_DEPRESSED = abs(REAR_LIFT_DEPRESSED - 255);
 
-float neutralAngle = 1.2;
+const int maxNeutral = 20; //Maximum 20 degrees offset for driving.
 
-task main()
-{
+//Degrees
+float forwardsAngle = 0;
+float leftNeutral = 0;
+float rightNeutral = 0;
+
+task main() {
+	//Set up precision speed control (which, incidentally, uses PID to do it :D)
 	nMotorPIDSpeedCtrl[left] = mtrSpeedReg;
 	nMotorPIDSpeedCtrl[right] = mtrSpeedReg;
-
-	PID forwardsPID;
-	initPID(forwardsPID,10,2,1);
-
-	/*
- 	PID forwardsPID;
- 	forwardsPID.Kp = 8;
- 	forwardsPID.Ki = -1; //0
- 	forwardsPID.Kd = 0;
- 	forwardsPID.maxIntegral = -1;
- 	const float kVelocity = 0.02;
- 	const float kSpeed = -0.4; //-0.4
- 	const float kEncoder = -0.05; //-0.05
- 	const float kSteering = 0.3;//insert DARK MAGIC
-
- 	float forwardsOffset = 0;
-
- 	forwardsPID.integral = 0;
- 	forwardsPID.prevPosition = 0;
- 	*/
-
-	bool running = true;
-
-	init();//Stands up and starts gyro task.
-
-	//forwardsPID.integral = 0;
-	//waitForStart();
-	StartTask(trim);
-	float leftOutput, rightOutput;
-	float leftTarget = 0;
- 	while(true)
- 	{
- 		nxtDisplayCenteredTextLine(2, "trim: %f", neutralAngle);
- 		if(forwardsAngle < -70 || forwardsAngle > 70) {//If it fell over
- 			init();
- 			reset(forwardsPID);
- 			//forwardsPID.integral = 0;
+	
+	//Initialize PIDs.
+	PID leftPID,rightPID;
+	initPID(leftPID,10,2,1);
+	initPID(rightPID,10,2,1);
+	
+	//Stands up and initiates gyro stuff.
+	init();
+	
+	waitForStart();
+	
+	//Initialize steering, raise arms... let's start!!
+	StartTask(steer);
+	servo[rearFlipper] = REAR_LIFT_RAISED;
+	servo[frontFlipper] = FRONT_LIFT_RAISED;
+	
+ 	while(true) {
+		if(abs(forwardsAngle) > 70) {//If it fell over, redo.
+ 			reset(leftPID);
+			reset(rightPID);
+			init();
+			servo[rearFlipper] = REAR_LIFT_RAISED;
+			servo[frontFlipper] = FRONT_LIFT_RAISED;
  		}
-
- 		if(running) {
-	 		getJoystickSettings(joystick);
-
-	 		/*if(abs(joystick.joy1_y1)<10)
-				joystick.joy1_y1 = 0;
-			if(abs(joystick.joy1_x2)<10)
-				joystick.joy1_x2 = 0;*/
-
-			/*
-			if(joystick.joy1_y1 > 50) {
-				servo[rearFlipper] = REAR_LIFT_RAISED - 50;
-			}
-			else{
-				servo[rearFlipper] = REAR_LIFT_RAISED;
-			}
-			if(joystick.joy1_y1 < -50) {
- 				servo[frontFlipper] = FRONT_LIFT_RAISED + 50;
- 			}
- 			else {
- 				servo[frontFlipper] = FRONT_LIFT_RAISED;
- 			}*/
-
-			//forwardsOffset =  -0.005*joystick.joy1_y1;
-			//forwardsOffset = 0;
-			float leftOutput, rightOutput;
-	 			leftOutput = rightOutput = updatePID(forwardsPID, neutralAngle - forwardsAngle);//, forwardsAngle);
-	 				//+ HTGYROreadRot(forwardsTilt) * kVelocity;
-	 			//leftOutput += kSpeed * leftOutput;
-	 			//leftOutput += forwardsPID.Kp * forwardsOffset;
-				//leftOutput += kEncoder * (0 - nMotorEncoder[left]);
-				/*rightOutput += kEncoder * (0 - nMotorEncoder[right]);*/
-
-				//if(abs(leftOutput) > 100)
-	 			//	leftOutput = sgn(leftOutput) * 100;
-	 			//if(rightOutput > 30)
-	 			//	rightOutput = 30;
-
-	 			motor[left] = leftOutput;
-	 			motor[right] = leftOutput;
-	 			wait1Msec(5);
-		}
+		
+		//Separate left and right PIDs to allow steering.
+		motor[left] = updatePID(leftPID, leftNeutral - forwardsAngle);
+		motor[right] = updatePID(rightPID, rightNeutral - forwardsAngle);
+		
+		wait1Msec(5);
  	}
 }
 
-task trim() {
+task steer() {//Uses joyBtns to change speed by adjusting neutral-points for left and right.
 	while(true) {
-		if(joy1Btn(4)) {
-			neutralAngle--;
-			while(joy1Btn(4));
-		}
-		if (joy1Btn(2)) {
-			neutralAngle++;
-			while(joy1Btn(2));
-		}
+		getJoystickSettings(joystick);
+		
+		//Neutralize joystick drift (when you release it you expect it to be zero, but it apparently isn't)
+		if(abs(joystick.joy1_y1) < 10)
+			joystick.joy1_y1 = 0;
+		if(abs(joystick.joy1_x1) < 10)
+			joystick.joy1_x1 = 0;
+		
+		//Joysticks are from -128 to +127.
+		//(Single-joystick drive)
+		leftNeutral = (joystick.joy1_y1 + joystick.joy1_x1) * maxNeutral / 128.0;
+		rightNeutral = (joystick.joy1_y1 - joystick.joy1_x1) * maxNeutral / 128.0;
 	}
 	wait1Msec(5);
 }
 
-task gyros() {//Updates the forwardsAngle variable with the current deviation from 90 degrees.
-	float curRateForwards = 0;
-	float curRateSide = 0;
-	float delTime = 0;
+task gyros() {//Updates the forwardsAngle global variable (degrees) with the current deviation from 90 degrees.
 	nSchedulePriority = kHighPriority;
-
+	INTR intr;//Integrator.
+	init(intr);
+	
+	forwardsAngle = 0;
+	
 	while(true) {
-		time1[T1] = 0;
-		curRateForwards = HTGYROreadRot(forwardsTilt);
-		if (abs(curRateForwards) > 3) {
-		  forwardsAngle += curRateForwards * delTime; //Approximates the next heading by adding the rate*time.
-		}
+		forwardsAngle = integrate(intr, /*Degrees/sec rotational velocity*/ HTGYROreadRot(forwardsTilt));
+			//Trapezoidal-approximation integrating degrees/sec to get degrees.
 		wait1Msec(5);
-		delTime = ((float)time1[T1]) / 1000; //set delta (zero first time around)
 	}
 }
+
 void init() {
+	//Stop.
 	motor[left] = 0;
 	motor[right] = 0;
-
+	
+	//Stand up.
 	servo[rearFlipper] = REAR_LIFT_DEPRESSED;
- 	servo[frontFlipper] = FRONT_LIFT_DEPRESSED;
- 	wait1Msec(2700);
- 	StopTask(gyros);
- 	PlaySound(soundBeepBeep);
-	HTGYROstartCal(forwardsTilt);
- 	wait1Msec(1000);
+	servo[frontFlipper] = FRONT_LIFT_DEPRESSED;
+	
+	//Wait for it to stand all the way up.
+	wait1Msec(2700);
+	
+	//Recalibrate the gyro.
+	StopTask(gyros);
 	PlaySound(soundBeepBeep);
-	forwardsAngle = 0;
+	HTGYROstartCal(forwardsTilt);
+	wait1Msec(1000);//Give it time to calibrate
+	PlaySound(soundBeepBeep);
+	
+	//K finished with gyro calibration.
 	StartTask(gyros);
- 	wait1Msec(200);
-	nMotorEncoder[left] = 0;
+	nMotorEncoder[left] = 0;//Not sure what these two lines are for.
 	nMotorEncoder[right] = 0;
-	servo[rearFlipper] = REAR_LIFT_RAISED;
- 	servo[frontFlipper] = FRONT_LIFT_RAISED;
 }
