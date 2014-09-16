@@ -41,12 +41,12 @@ const int REAR_LIFT_DEPRESSED = 40;
 const int FRONT_LIFT_RAISED = abs(REAR_LIFT_RAISED - 255);
 const int FRONT_LIFT_DEPRESSED = abs(REAR_LIFT_DEPRESSED - 255);
 
-const int maxNeutral = 20; //Maximum 20 degrees offset for driving.
+const float maxNeutral = 20.0; //Maximum degrees offset for driving.
 
 //Degrees
-float forwardsAngle = 0;
-float leftNeutral = 0;
-float rightNeutral = 0;
+float forwardsAngle = 0;//Current error from 90 degrees
+float leftNeutral = 0;//Target angle for left wheel
+float rightNeutral = 0;//Target angle for right wheel
 
 task main() {
 	//Set up precision speed control (which, incidentally, uses PID to do it :D)
@@ -69,7 +69,7 @@ task main() {
 	servo[frontFlipper] = FRONT_LIFT_RAISED;
 	
  	while(true) {
-		if(abs(forwardsAngle) > 70) {//If it fell over, redo.
+		if(abs(forwardsAngle) > 60) {//If it fell over, reset and redo.
  			reset(leftPID);
 			reset(rightPID);
 			init();
@@ -77,7 +77,7 @@ task main() {
 			servo[frontFlipper] = FRONT_LIFT_RAISED;
  		}
 		
-		//Separate left and right PIDs to allow steering.
+		//Separate left and right PIDs to allow steering by NeutralAngle adjustment.
 		motor[left] = updatePID(leftPID, leftNeutral - forwardsAngle);
 		motor[right] = updatePID(rightPID, rightNeutral - forwardsAngle);
 		
@@ -85,40 +85,37 @@ task main() {
  	}
 }
 
+//Neutralize joystick drift (sometimes it isn't zero when you release the stick, due to mechanical error)
+float norm(float joyval){if(abs(joyval) < 10) return 0; else return joyval;}
+
 task steer() {//Uses joyBtns to change speed by adjusting neutral-points for left and right.
 	while(true) {
 		getJoystickSettings(joystick);
 		
-		//Neutralize joystick drift (when you release it you expect it to be zero, but it apparently isn't)
-		if(abs(joystick.joy1_y1) < 10)
-			joystick.joy1_y1 = 0;
-		if(abs(joystick.joy1_x1) < 10)
-			joystick.joy1_x1 = 0;
+		//Single-joystick drive - forward-backward is speed, left-right is turn. (Joystick vals are from -128 to +127.)
+		leftNeutral = (norm(joystick.joy1_y1) + norm(joystick.joy1_x1)) * maxNeutral / 128.0;
+		rightNeutral = (norm(joystick.joy1_y1) - norm(joystick.joy1_x1)) * maxNeutral / 128.0;
 		
-		//Joysticks are from -128 to +127.
-		//(Single-joystick drive)
-		leftNeutral = (joystick.joy1_y1 + joystick.joy1_x1) * maxNeutral / 128.0;
-		rightNeutral = (joystick.joy1_y1 - joystick.joy1_x1) * maxNeutral / 128.0;
+		wait1Msec(5);
 	}
-	wait1Msec(5);
 }
 
 task gyros() {//Updates the forwardsAngle global variable (degrees) with the current deviation from 90 degrees.
-	nSchedulePriority = kHighPriority;
+	nSchedulePriority = kHighPriority;//This exemplifies my hate of ROBOTC, but it pretty much just sets it to high CPU priority.
+	
 	INTR intr;//Integrator.
 	init(intr);
 	
 	forwardsAngle = 0;
 	
-	while(true) {
-		forwardsAngle = integrate(intr, /*Degrees/sec rotational velocity*/ HTGYROreadRot(forwardsTilt));
-			//Trapezoidal-approximation integrating degrees/sec to get degrees.
+	while(true) {//Constantly integrating gyro rotational velocity reading in degrees/sec to get current heading in degrees.
+		forwardsAngle = integrate(intr, HTGYROreadRot(forwardsTilt));
 		wait1Msec(5);
 	}
 }
 
 void init() {
-	//Stop.
+	//Stop moving.
 	motor[left] = 0;
 	motor[right] = 0;
 	
@@ -131,13 +128,15 @@ void init() {
 	
 	//Recalibrate the gyro.
 	StopTask(gyros);
-	PlaySound(soundBeepBeep);
+	PlaySound(soundBeepBeep);//"Starting calibration!"
 	HTGYROstartCal(forwardsTilt);
 	wait1Msec(1000);//Give it time to calibrate
-	PlaySound(soundBeepBeep);
+	PlaySound(soundBeepBeep);//"Done calibrating!"
 	
-	//K finished with gyro calibration.
+	//K, finished with gyro calibration. Start measuring angle now.
 	StartTask(gyros);
-	nMotorEncoder[left] = 0;//Not sure what these two lines are for.
+	
+	//Not sure what these two lines are for.
+	nMotorEncoder[left] = 0;
 	nMotorEncoder[right] = 0;
 }
