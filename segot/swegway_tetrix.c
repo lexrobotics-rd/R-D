@@ -32,7 +32,7 @@ Wikipedia has an even simpler and quite insightful way of explaining it: "P" cor
 
 //Forward declarations
 task gyros();
-void init();
+void initSweg();
 task steer();
 
 //Degree headings for 180-degree "lift" servos
@@ -52,35 +52,35 @@ task main() {
 	//Set up precision speed control (which, incidentally, uses PID to do it :D)
 	nMotorPIDSpeedCtrl[left] = mtrSpeedReg;
 	nMotorPIDSpeedCtrl[right] = mtrSpeedReg;
-	
+
 	//Initialize PIDs.
 	PID leftPID,rightPID;
-	initPID(leftPID,10,2,1);
-	initPID(rightPID,10,2,1);
-	
+	initPID(leftPID,2,1,0);
+	initPID(rightPID,2,1,0);
+
 	//Stands up and initiates gyro stuff.
-	init();
-	
-	waitForStart();
-	
+	initSweg();
+
+	//waitForStart();
+
 	//Initialize steering, raise arms... let's start!!
 	StartTask(steer);
 	servo[rearFlipper] = REAR_LIFT_RAISED;
 	servo[frontFlipper] = FRONT_LIFT_RAISED;
-	
+
  	while(true) {
-		if(abs(forwardsAngle) > 60) {//If it fell over, reset and redo.
+		if(abs(forwardsAngle) > 50) {//If it fell over, reset and redo.
  			reset(leftPID);
 			reset(rightPID);
-			init();
+			initSweg();
 			servo[rearFlipper] = REAR_LIFT_RAISED;
 			servo[frontFlipper] = FRONT_LIFT_RAISED;
  		}
-		
+
 		//Separate left and right PIDs to allow steering by NeutralAngle adjustment.
 		motor[left] = updatePID(leftPID, leftNeutral - forwardsAngle);
 		motor[right] = updatePID(rightPID, rightNeutral - forwardsAngle);
-		
+
 		wait1Msec(5);
  	}
 }
@@ -91,51 +91,51 @@ float norm(float joyval){if(abs(joyval) < 10) return 0; else return joyval;}
 task steer() {//Uses joyBtns to change speed by adjusting neutral-points for left and right.
 	while(true) {
 		getJoystickSettings(joystick);
-		
+
 		//Single-joystick drive - forward-backward is speed, left-right is turn. (Joystick vals are from -128 to +127.)
 		leftNeutral = (norm(joystick.joy1_y1) + norm(joystick.joy1_x1)) * maxNeutral / 128.0;
 		rightNeutral = (norm(joystick.joy1_y1) - norm(joystick.joy1_x1)) * maxNeutral / 128.0;
-		
+
 		wait1Msec(5);
 	}
 }
 
 task gyros() {//Updates the forwardsAngle global variable (degrees) with the current deviation from 90 degrees.
 	nSchedulePriority = kHighPriority;//This exemplifies my hate of ROBOTC, but it pretty much just sets it to high CPU priority.
-	
+
 	INTR intr;//Integrator.
-	init(intr);
-	
+	initIntr(intr);
+
 	forwardsAngle = 0;
-	
+
 	while(true) {//Constantly integrating gyro rotational velocity reading in degrees/sec to get current heading in degrees.
 		forwardsAngle = integrate(intr, HTGYROreadRot(forwardsTilt));
 		wait1Msec(5);
 	}
 }
 
-void init() {
+void initSweg() {
 	//Stop moving.
 	motor[left] = 0;
 	motor[right] = 0;
-	
+
 	//Stand up.
 	servo[rearFlipper] = REAR_LIFT_DEPRESSED;
 	servo[frontFlipper] = FRONT_LIFT_DEPRESSED;
-	
+
 	//Wait for it to stand all the way up.
 	wait1Msec(2700);
-	
+
 	//Recalibrate the gyro.
 	StopTask(gyros);
 	PlaySound(soundBeepBeep);//"Starting calibration!"
 	HTGYROstartCal(forwardsTilt);
 	wait1Msec(1000);//Give it time to calibrate
 	PlaySound(soundBeepBeep);//"Done calibrating!"
-	
+
 	//K, finished with gyro calibration. Start measuring angle now.
 	StartTask(gyros);
-	
+
 	//Not sure what these two lines are for.
 	nMotorEncoder[left] = 0;
 	nMotorEncoder[right] = 0;

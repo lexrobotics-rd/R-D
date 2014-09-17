@@ -25,14 +25,14 @@ void initPID(PID* pid, float p, float i, float d){
 	pid->Kp = p;
 	pid->Ki = i;
 	pid->Kd = d;
-	init(pid->integral);
-	init(pid->prevErr);
+	initIntr(pid->integral);
+	initDeriv(pid->derivative);
 }
 void reset(PID* p){
 	initPID(p,p->Kp,p->Ki,p->Kd);
 }
 float updatePID(PID& pid, float error) {
 	return pid.Kp * error								//P
-		+ pid.Ki * integrate(pid.integral, error);		//I //Does integral need a cap on value?
+		+ pid.Ki * integrate(pid.integral, error)		//I //Does integral need a cap on value?
 		+ pid.Kd * derivative(pid.derivative, error);	//D
 }
