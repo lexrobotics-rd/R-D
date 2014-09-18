@@ -55,8 +55,13 @@ task main() {
 
 	//Initialize PIDs.
 	PID leftPID,rightPID;
-	initPID(leftPID,2,1,0);
-	initPID(rightPID,2,1,0);
+	initPID(leftPID,2,0.5,0);
+	initPID(rightPID,2,0.5,0);
+	//Tuning tips: http://robotics.stackexchange.com/questions/167/what-are-good-strategies-for-tuning-pid-loops
+	//Also, double PID loops: http://forum.arduino.cc/index.php?topic=197688.0
+	//PID for physical position, not just rotational? (need accel)
+	//Swag: https://www.youtube.com/watch?v=n_6p-1J551Y
+	//Maybe we should try a unisphere balancing robot :) https://www.youtube.com/watch?v=bI06lujiD7E
 
 	//Stands up and initiates gyro stuff.
 	initSweg();
