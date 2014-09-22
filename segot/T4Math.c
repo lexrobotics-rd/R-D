@@ -33,23 +33,25 @@ float integral = integrate(i, currvalue);
 float derivative = derivative(i, currvalue);
 */
 typedef struct{float prev; float prevTime; float integral;} INTR;
-float initIntr(INTR* intr){
+void initIntr(INTR* intr){
 	T4Init();
 	intr->prev=0;
 	intr->prevTime=time1[T4];
 	intr->integral=0;
+	return;
 }
 float integrate(INTR* intr, float curr){
 	float diff = T4DiffUpdate(intr->prevTime);
 	float tmpprev = intr->prev; intr->prev = curr;
-	return (intr->integral += 0.5*(curr + tmpprev)*(diff / 1000.0));//Trapezoidal approximation.
+	return intr->integral += 0.5*(curr + tmpprev)*(diff / 1000.0);//Trapezoidal approximation.
 }
 
 typedef struct{float prev; float prevTime;} DERIV;
-float initDeriv(DERIV* d){
+void initDeriv(DERIV* d){
 	T4Init();
 	d->prev=0;
 	d->prevTime=time1[T4];
+	return;
 }
 float derivative(DERIV* d, float curr){
 	float diff = T4DiffUpdate(d->prevTime);
