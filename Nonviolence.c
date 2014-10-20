@@ -3,9 +3,9 @@ Nonviolence.c
 "Together, we CAN stop motor abuse."
 A function to alleviate instant, jerky velocity changes in motors, instead gradually accelerating them to speed.
 
-LastUpdatedOn: 10-15-14
-LastUpdatedBy: Clive
-Status: it compiles, but who knows what'll happen when it runs?
+LastUpdatedOn: 10-20-14
+LastUpdatedBy: Nathaniel+Clive
+Status: Reviewed and compiled. But who knows what'll happen when it runs?
 */
 
 
