@@ -2,8 +2,8 @@
 
 cd ~/Documents/Programming
 
-alias gps="git push origin master"
-alias gpl="git pull origin master"
+alias gps="git push origin"
+alias gpl="git pull origin"
 alias gs="git status"
 alias gc="git add -A && git commit"
 alias cd..="cd .."
