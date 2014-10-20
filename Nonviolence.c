@@ -28,46 +28,44 @@ const int NV_wait = 50;//Milliseconds, how long to wait between adjustments. Hig
 
 
 // STUFF YOU SHOULDN'T TOUCH
-const float NV_incfactor = ((float)NV_wait) / ((float)NV_trans); //What you have to multiply the difference by to get the per-loop increment.
-typedef short mtr;
-const int numMtrs = kNumbOfTotalMotors;
+const float NV_incfactor = ((float)NV_wait) / ((float)NV_trans); //the constant increment used to scale acceleration.
+typedef short motorType;
+const int numMotors = kNumbOfTotalMotors;
 
-mtr NV_mtrs[numMtrs];
-int NV_targets[numMtrs];
-int NV_incs[numMtrs];
+motorType NV_mtrs[numMotors];  //declares array of motor numbers ("motorsLeft" and "motorsRight" are actually stored as integers)
+int NV_targets[numMotors]; //declares array of target speeds for each motor
+int NV_incs[numMotors];  //declares array of speed increments for each motor
 
-void nonviolence(mtr m, int target){
-	for(int i=0;i<numMtrs;i++){ //RobotC may not support sizeofs.
-		if(m == NV_mtrs[i] || m == -1){
-			NV_mtrs[i] = m;
+void nonviolence(motorType newInputMotor, int target){	//this function is called in order to add a motor to the next
+	for(int i = 0; i < numMotors; i++){ 										//available slot in the nonviolenceTask process queue
+		if(newInputMotor == NV_mtrs[i] || NV_mtrs[i] == -1){
+			NV_mtrs[i] = newInputMotor;
 			NV_targets[i] = target;
-			NV_incs[i] = (target - motor[m]) * NV_incfactor;
+			NV_incs[i] = (target - motor[newInputMotor]) * NV_incfactor;
 			break;
 		}
-		//Loops through all of the known motors, and assigns targets and increments as necessary.
 	}
 }
 
 
 task nonviolenceTask{
-	for(int i=0;i<numMtrs;i++){ //Fill up the array with initial values.
-		NV_mtrs[i] = -1; //----------chk that this is indeed an invalid motor number-----------//
+	for(int i = 0; i < numMotors; i++){ //--------Initializes NonViolant Arrays-------//
+		NV_mtrs[i] = -1;//Sentinel for the NV_mtrs[] array. Considered an empty value.
 		NV_targets[i] = 0;
 		NV_incs[i] = 0;
 	}
 
 	float diff;
-	while(1){
-		for(int i=0;i<numMtrs;i++){//Check on all the motors, inc if necessary.
-			if(NV_mtrs[i] == -1) break; //Ok, we've reached the end -- all the remaining empty spots are filled with -1s
+	while(true){
+		for(int i = 0; i < numMotors; i++){//Check on all the motors, inc if necessary.
+			if(NV_mtrs[i] == -1) break; //Ok, we've reached the sentinel -- all the remaining empty spots must be filled with -1s
 
 			diff = NV_targets[i] - motor[NV_mtrs[i]];
-			if(abs(diff) < abs(NV_incs[i])){ //Done if the difference is less than inc (abs because targets may be less than current)
-				motor[NV_mtrs[i]] = NV_targets[i];
-				continue;
-			}
-			motor[NV_mtrs[i]] += NV_incs[i]; //Otherwise, change the
-		}
+			if(abs(diff) < abs(NV_incs[i]))
+				motor[NV_mtrs[i]] = NV_targets[i]; //Done if the difference is less than inc (abs because targets may be less than current)
+			else
+				motor[NV_mtrs[i]] += NV_incs[i]; //Otherwise, change the speed of the motor
+		}//end for loop
 		wait1Msec(NV_wait);
-	}
+	}//end while loop
 }
