@@ -8,6 +8,7 @@ alias gs="git status"
 alias gc="git add -A && git commit"
 alias cd..="cd .."
 alias dir="ls"
+alias cls="clear"
 alias main="cd ~/Documents/Programming/2015-4029 && git status"
 alias rd="cd ~/Documents/Programming/r-d && git status"
 
