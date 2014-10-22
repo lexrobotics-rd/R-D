@@ -57,7 +57,7 @@ void nonviolence(tMotor newInputMotor, int target){	//this function is called in
 
 void nonviolenceMode(const string s){
 	if(s=="gandhi")NV_mode_nonviolent = true;
-	else if(s=="hannibal")NV_mode_nonviolent = false;
+	else if(s=="hannibal")NV_mode_nonviolent = false;//'cause sometimes violence is necessary. Remember, no mercy.
 }
 
 task nonviolenceTask{
@@ -72,7 +72,8 @@ task nonviolenceTask{
 		for(int i = 0; i < numMotors; i++){//Check on all the motors, inc if necessary.
 			if(NV_mtrs[i] == NV_sentinel) break; //Ok, we've reached the sentinel -- all the remaining empty spots are filled with sentinels too
 			writeDebugStreamLine("%d %d",NV_mtrs[i],motor[NV_mtrs[i]]);
-			if(!NV_mode_nonviolent) motor[NV_mtrs[i]] = NV_targets[i]; //If we've set nonviolent mode to off, just set the motor directly.
+			if(!NV_mode_nonviolent)
+				motor[NV_mtrs[i]] = NV_targets[i]; //If we've set nonviolent mode to off, just set the motor directly.
 
 			diff = NV_targets[i] - motor[NV_mtrs[i]];
 			if(abs(diff) < abs(NV_incs[i]))
