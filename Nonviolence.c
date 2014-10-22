@@ -3,9 +3,14 @@ Nonviolence.c
 "Together, we CAN stop motor abuse."
 A function to alleviate instant, jerky velocity changes in motors, instead gradually accelerating them to speed.
 
-LastUpdatedOn: 10-20-14
-LastUpdatedBy: Nathaniel+Clive
-Status: Reviewed and compiled. But who knows what'll happen when it runs?
+LastUpdatedOn: 10-22-14
+LastUpdatedBy: Clive
+Status: IT WORKS.
+
+To do next: change NV_trans (as params?)
+Exponential, logistic, etc.?
+Generalize for anything - smoothly move from point A to point B. Maybe callbacks.
+Does this integrate nicely? Is the distance consistent? (see encoder)
 */
 
 
