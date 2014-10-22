@@ -32,6 +32,8 @@ const float NV_incfactor = ((float)NV_wait) / ((float)NV_trans); //the constant 
 typedef short motorType;
 const int numMotors = kNumbOfTotalMotors;
 
+bool NV_mode_nonviolent = true;
+
 motorType NV_mtrs[numMotors];  //declares array of motor numbers ("motorsLeft" and "motorsRight" are actually stored as integers)
 int NV_targets[numMotors]; //declares array of target speeds for each motor
 int NV_incs[numMotors];  //declares array of speed increments for each motor
@@ -47,24 +49,30 @@ void nonviolence(motorType newInputMotor, int target){	//this function is called
 	}
 }
 
+void nonviolenceMode(string s){
+	if(s=="gandhi")NV_mode_nonviolent = true;
+	else if(s=="hannibal")NV_mode_nonviolent = false;
+}
 
 task nonviolenceTask{
-	for(int i = 0; i < numMotors; i++){ //--------Initializes NonViolant Arrays-------//
+	for(int i = 0; i < numMotors; i++){ //--------Initializes Nonviolence data arrays-------//
 		NV_mtrs[i] = -1;//Sentinel for the NV_mtrs[] array. Considered an empty value.
-		NV_targets[i] = 0;
-		NV_incs[i] = 0;
+		NV_targets[i] = 0;//Target will be set by nonviolence() anyway.
+		NV_incs[i] = 0;//Inc will also be set by nonviolence().
 	}
 
 	float diff;
 	while(true){
 		for(int i = 0; i < numMotors; i++){//Check on all the motors, inc if necessary.
-			if(NV_mtrs[i] == -1) break; //Ok, we've reached the sentinel -- all the remaining empty spots must be filled with -1s
+			if(NV_mtrs[i] == -1) break; //Ok, we've reached the sentinel -- all the remaining empty spots are filled with -1s too
+
+			if(!NV_mode_nonviolent) motor[NV_mtrs[i]] = NV_targets[i]; //If we've set nonviolent mode to off, just set the motor directly.
 
 			diff = NV_targets[i] - motor[NV_mtrs[i]];
 			if(abs(diff) < abs(NV_incs[i]))
 				motor[NV_mtrs[i]] = NV_targets[i]; //Done if the difference is less than inc (abs because targets may be less than current)
 			else
-				motor[NV_mtrs[i]] += NV_incs[i]; //Otherwise, change the speed of the motor
+				motor[NV_mtrs[i]] += NV_incs[i]; //Otherwise, change the speed of the motor by the set increment.
 		}//end for loop
 		wait1Msec(NV_wait);
 	}//end while loop
