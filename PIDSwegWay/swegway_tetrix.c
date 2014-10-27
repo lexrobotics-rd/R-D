@@ -17,7 +17,7 @@
 #include "drivers/hitechnic-gyro.h"
 #include "drivers/hitechnic-accelerometer.h"
 #include "JoystickDriver.c"
-#include "PID.c"
+#include "../lib/PID.h"
 
 /*
 SCHPEEEEEL on how this works

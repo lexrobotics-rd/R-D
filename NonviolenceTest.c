@@ -20,7 +20,7 @@ LastUpdatedBy: Clive
 Status: IT WORKS.
 */
 
-#include "Nonviolence.c"
+#include "lib/Nonviolence.h"
 
 task main(){
 	startTask(nonviolenceTask);
