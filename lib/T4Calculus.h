@@ -1,6 +1,25 @@
 /*
+T4Calculus.h
+
+LastUpdatedOn: [date]
+LastUpdatedBy: [name]
+Status: [status - final scrim copy, compiles but untested, just started, etc.]
+*/
+
+
+/* HOW TO USE IT
 T4 (timer 4 on NXT) Management Functions.
 All encapsulated for timer management on T4. Used for integrals and derivatives.
+
+INIT
+T4Init();
+//at the beginning of anywhere. It's smart enough only to do anything once.
+
+RUN
+T4DiffUpdate(prevtime);
+//Updates prevtime to the current time, and returns the difference in milliseconds.
+
+Never disturb Timer T4.
 */
 bool T4FirstRun = true;
 void T4Init(){//Can I run this onload? Is that a bad idea?
@@ -9,8 +28,8 @@ void T4Init(){//Can I run this onload? Is that a bad idea?
 		ClearTimer(T4);
 	}
 }
-float T4DiffUpdate(float& prevTime){//Returns the difference of time, and sets the variable to the new current time.
-	float diff;
+int T4DiffUpdate(int& prevTime){//Returns the difference of times (ms), and sets the variable to the new current time.
+	int diff;
 	if(prevTime > time1[T4])//Working around looparound of
 		diff = 65535 + (time1[T4] - prevTime); //Does this work? Is it precise enough?
 	else
@@ -22,7 +41,7 @@ float T4DiffUpdate(float& prevTime){//Returns the difference of time, and sets t
 	return diff;
 }
 
-/*
+/* HOW TO USE IT
 Derivatives and Integrals, with respect to (T4) time.
 INITIALIZE:
 INTR i; initIntr(i);
