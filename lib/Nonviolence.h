@@ -1,5 +1,5 @@
 /*
-Nonviolence.c
+Nonviolence.h
 "Together, we CAN stop motor abuse."
 A function to alleviate instant, jerky velocity changes in motors, instead gradually accelerating them to speed.
 
