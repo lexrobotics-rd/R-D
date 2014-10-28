@@ -1,15 +1,15 @@
 /*
-T4 Management Functions.
+T4 (timer 4 on NXT) Management Functions.
 All encapsulated for timer management on T4. Used for integrals and derivatives.
 */
 bool T4FirstRun = true;
-void T4Init(){
+void T4Init(){//Can I run this onload? Is that a bad idea?
 	if(T4FirstRun){//Resets it only once, to not mess up anything else being run on T4.
 		T4FirstRun = false;
 		ClearTimer(T4);
 	}
 }
-float T4DiffUpdate(float& prevTime){
+float T4DiffUpdate(float& prevTime){//Returns the difference of time, and sets the variable to the new current time.
 	float diff;
 	if(prevTime > time1[T4])//Working around looparound of
 		diff = 65535 + (time1[T4] - prevTime); //Does this work? Is it precise enough?
@@ -23,14 +23,14 @@ float T4DiffUpdate(float& prevTime){
 }
 
 /*
-Derivatives and Integrals.
+Derivatives and Integrals, with respect to (T4) time.
 INITIALIZE:
-INTR i; init(i);
-DERIV d; init(d);
+INTR i; initIntr(i);
+DERIV d; initDeriv(d);
 
 USAGE (in loop):
-float integral = integrate(i, currvalue);
-float derivative = derivative(i, currvalue);
+float integralFromZero = integrate(i, currvalue);
+float currentDerivative = derivative(d, currvalue);
 */
 typedef struct{float prev; float prevTime; float integral;} INTR;
 void initIntr(INTR* intr){
@@ -57,5 +57,5 @@ float derivative(DERIV* d, float curr){
 	float diff = T4DiffUpdate(d->prevTime);
 	float tmpprev = d->prev; d->prev = curr;
 	return (curr - tmpprev) / diff;//Average derivative.
-		//Are there better ways to approximate current instantaneous derivative? Maybe use 2nd deriv?
+		//Are there better ways to approximate current instantaneous derivative? Maybe use 2nd deriv? No.
 }
