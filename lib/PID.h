@@ -35,6 +35,7 @@ initPID(p, Kp, Ki, Kd); //Sets the constants, initializes integral, etc.
 
 USAGE (in loop):
 float PIDOutput = updatePID(p, currError); //Using the current error, calculates P, I, and D
+//A good thing to do is two wait ~5-10ms, because the sensors have a polling limit of a few ms.
 
 RESET:
 reset(p); //zeroes the integrals and stuff; uses the same constants
