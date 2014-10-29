@@ -20,7 +20,7 @@ LastUpdatedBy: Clive
 Status: IT WORKS.
 */
 
-#include "lib/Nonviolence.h"
+#include "lib\Nonviolence.h"
 
 task main(){
 	startTask(nonviolenceTask);
@@ -31,13 +31,13 @@ task main(){
 	motor[motorA]=50;
 	wait1Msec(x);
 
-	PlaySound(soundBeepBeep);
+	playSound(soundBeepBeep);
 	nonviolence(motorA,100);
 	wait1Msec(x);
-	PlaySound(soundBeepBeep);
+	playSound(soundBeepBeep);
 	nonviolence(motorA,0);
 	wait1Msec(x);
-	PlaySound(soundBeepBeep);
+	playSound(soundBeepBeep);
 
 	return;
 }

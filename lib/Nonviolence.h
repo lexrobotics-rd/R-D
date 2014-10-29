@@ -28,8 +28,8 @@ Note also that the NXT is not thread-safe, even though it has multiple "threads"
 
 
 // STUFF YOU MIGHT WANT TO DEFINE
-const int NV_trans = 3000; //Imagine it's like a CSS transition, except with motor velocity. Milliseconds.
-const int NV_wait = 100;//Milliseconds, how long to wait between adjustments. High = faster NXT program but choppier.
+const int NV_trans = 800; //Imagine it's like a CSS transition, except with motor velocity. Milliseconds.
+const int NV_wait = 100; //Milliseconds, how long to wait between adjustments. High = faster NXT program but choppier.
 
 
 // STUFF YOU SHOULDN'T TOUCH
