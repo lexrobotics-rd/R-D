@@ -11,7 +11,7 @@ PID ftw?
 
 LastUpdateOn: 10-29-14
 LastUpdatedBy: David
-Status: working directory clean, nothing to commit
+Status: nothing to commit, working directory clean
 */
 
 #include "lib\Nonviolence.h"
