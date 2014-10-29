@@ -25,13 +25,16 @@ task main()
 	wait1Msec(w);
 	motor[oneMotorToRuleThemAll] = 0;
 	wait1Msec(w);
+	displayCenteredTextLine(0, "%d", nMotorEncoder[oneMotorToRuleThemAll]);
 
 	playSound(soundBeepBeep);
 	nonviolence(oneMotorToRuleThemAll,100);
 	wait1Msec(w);
+	displayCenteredTextLine(1, "%d", nMotorEncoder[oneMotorToRuleThemAll]);
 	playSound(soundBeepBeep);
 	nonviolence(oneMotorToRuleThemAll,0);
 	wait1Msec(w);
+	displayCenteredTextLine(2, "%d", nMotorEncoder[oneMotorToRuleThemAll]);
 	playSound(soundBeepBeep);
 
 	stopTask(nonviolenceTask);
