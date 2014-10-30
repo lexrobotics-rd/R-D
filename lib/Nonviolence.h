@@ -3,84 +3,134 @@ Nonviolence.h
 "Together, we CAN stop motor abuse."
 A function to alleviate instant, jerky velocity changes in motors, instead gradually accelerating them to speed.
 
-LastUpdatedOn: 10-22-14
+LastUpdatedOn: 10-29-14
 LastUpdatedBy: Clive
-Status: IT WORKS.
+Status: Major edits - modes and struct - untested.
 
-To do next: change NV_trans (as params?)
-Exponential, logistic, etc.?
-Generalize for anything - smoothly move from point A to point B. Maybe callbacks.
-Does this integrate nicely? Is the distance consistent? (see encoder)
+Todo next possibly:
+Generalize for anything - smoothly move from point A to point B. Maybe callbacks - LOLZ ROBOTC DOESN'T SUPPORT THEM. Maybe reference variables.
+Does this integrate nicely? Is the distance consistent? Is there a way to apply this to encoder counts rather than speeds? (test it with encoders!)
 */
 
 
 /* HOW TO USE IT
 Beginning of program:
-	startTask(nonviolence_task);
+	startTask(nonviolenceTask);
 
-When moving:
-	nonviolence(motorsLeft, 100);
-(instead of motor[motorsLeft] = 100;)
+When moving: (instead of motor[motorsLeft] = 100;)
+	nonviolence(motorsLeft, 100);//Default (NV_DEFAULT_MODE) is (at the time of this writing) NV_MODE_LINEAR.
+	nonviolence(motorsLeft, 100, NV_MODE_STEP); //Steps it directly to the target speed, with total violence. Just like motor[motorsLeft] = 100;.
+	nonviolence(motorsLeft, 100, NV_MODE_LINEAR); //Linearly ramps it up/down to the target speed.
+	nonviolence(motorsLeft, 100, NV_MODE_LOGISTIC); //Logistically ramps it up/down to the target speed.
 
-Note that this uses a task. The NXT is (evidently) limited to 5 tasks, so be careful of this limit!
-Note also that the NXT is not thread-safe, even though it has multiple "threads" running "concurrently."
+Note that this uses a task. The NXT is (apparently) limited to 5 tasks, so be careful of this limit!
+Note also that the NXT is not actually thread-safe, even though it has multiple "threads" running "concurrently."
+This also has a ton of global constants, all prefixed with NV_.
+This also contains a function, and if you ever run up against the ROBOTC 256-function limit... what are you even doing?
 */
 
 
 // STUFF YOU MIGHT WANT TO DEFINE
-const int NV_trans = 800; //Imagine it's like a CSS transition, except with motor velocity. Milliseconds.
-const int NV_wait = 100; //Milliseconds, how long to wait between adjustments. High = faster NXT program but choppier.
-
+//Must both be positive.
+const int NV_tick = 10; //Milliseconds per clocktick of the Nonviolence task.
+const int NV_acc = 3; //How much to increase/decrease the motor per NV_tick milliseconds. Serves as maximum acceleration for nonlinear modes.
 
 // STUFF YOU SHOULDN'T TOUCH
-const float NV_incfactor = ((float)NV_wait) / ((float)NV_trans); //the constant increment used to scale acceleration.
-//typedef short tMotor;
+//# of motors
 const int numMotors = kNumbOfTotalMotors;
-const tMotor NV_sentinel = (tMotor)122;//-------------this is really sketchy-------------
 
-bool NV_mode_nonviolent = true;
+//Constants for nonviolence modes.
+const int NV_MODE_STEP = 0;
+const int NV_MODE_LINEAR = 1;
+const int NV_MODE_LOGISTIC = 2; //Logistic! Read about it on Wikipedia.
+const int NV_DEFAULT_MODE = NV_MODE_LINEAR;
 
-tMotor NV_mtrs[numMotors];  //declares array of motor numbers ("motorsLeft" and "motorsRight" are actually stored as integers)
-signed int NV_targets[numMotors]; //declares array of target speeds for each motor
-signed int NV_incs[numMotors];  //declares array of speed increments for each motor
+//Logistic "close enough we'll just pretend it's zero"
+const int NV_LOGISTIC_CLOSEENOUGH = 2;
 
-void nonviolence(tMotor newInputMotor, int target){	//this function is called in order to add a motor to the next
-	for(int i = 0; i < numMotors; i++){ 										//available slot in the nonviolenceTask process queue
-		if(newInputMotor == NV_mtrs[i] || NV_mtrs[i] == NV_sentinel){
-			NV_mtrs[i] = newInputMotor;
-			NV_targets[i] = target;
-			NV_incs[i] = (target - motor[newInputMotor]) * NV_incfactor;
+//Motor Properties variable structure
+typedef struct{
+	signed int motor; //motor number ("motorsLeft" and "motorsRight" are actually stored as integers)
+	signed int initial; //Initial speed
+	signed int target; //Target speed
+	signed int mode; //Mode - see above
+	bool active;
+}NV_motorproperties;
+
+/*
+The "NV" Motor Queue
+This queue will store the motors being acted upon. Doesn't do anything until you start calling nonviolence().
+When you call nonviolence(), it adds a motor to that queue, with all the properties of the path it will follow. (motornumber, initial position, target, path mode)
+Next time you call nonviolence(), that motor is already in the queue, so it'll just be modified.
+When nonviolenceTask runs (once every NV_tick milliseconds), it will look at all the "active" motors in the queue and increment them along their journey.
+
+Why do we need it? To support multiple motors running at once.
+Also, because there is no way to access the list of motor numbers currently available, so they must be added on sight.
+Mainly, because ROBOTC is really annoying.
+*/
+NV_motorproperties NV[numMotors]; //declares array of motors (called "NV") of NV_motorproperties's.
+
+void nonviolence(tMotor newInputMotor, int target, int mode = NV_DEFAULT_MODE){
+	//Make sure we're not doing weird stuff with over-100 values.
+	target = min(target, 100);
+	target = max(target, -100);
+	
+	for(int i = 0; i < numMotors; i++)
+		if(NV[i]->motor == newInputMotor || NV[i]->active == false){ //Unnecessarily initializes some motors. But it works perfectly well.
+			NV[i]->motor = newInputMotor;
+			NV[i]->initial = motor[newInputMotor];
+			NV[i]->target = target;
+			NV[i]->mode = mode;
+			NV[i]->active = true;
 			break;
 		}
-	}
-}
-
-void nonviolenceMode(const string s){
-	if(s=="gandhi")NV_mode_nonviolent = true;
-	else if(s=="hannibal")NV_mode_nonviolent = false;//'cause sometimes violence is necessary. Remember, no mercy.
 }
 
 task nonviolenceTask{
-	for(int i = 0; i < numMotors; i++){ //--------Initializes Nonviolence data arrays-------//
-		NV_mtrs[i] = NV_sentinel;//Sentinel for the NV_mtrs[] array. Considered an empty value.
-		NV_targets[i] = 0;//Target will be set by nonviolence() anyway.
-		NV_incs[i] = 0;//Inc will also be set by nonviolence().
-	}
-
-	float diff;
+	for(int i = 0; i < numMotors; i++) //Initializes Nonviolence motor array
+		NV[i]->active = false; //By default, none of the queued motors are active.
+	
 	while(true){
 		for(int i = 0; i < numMotors; i++){//Check on all the motors, inc if necessary.
-			if(NV_mtrs[i] == NV_sentinel) break; //Ok, we've reached the sentinel -- all the remaining empty spots are filled with sentinels too
-			writeDebugStreamLine("%d %d",NV_mtrs[i],motor[NV_mtrs[i]]);
-			if(!NV_mode_nonviolent)
-				motor[NV_mtrs[i]] = NV_targets[i]; //If we've set nonviolent mode to off, just set the motor directly.
-
-			diff = NV_targets[i] - motor[NV_mtrs[i]];
-			if(abs(diff) < abs(NV_incs[i]))
-				motor[NV_mtrs[i]] = NV_targets[i]; //Done if the difference is less than inc (abs because targets may be less than current)
-			else
-				motor[NV_mtrs[i]] += NV_incs[i]; //Otherwise, change the speed of the motor by the set increment.
+			if(!NV[i]->active) continue; //This queued motor isn't active. Skip.
+			
+			float initVal = NV[i]->initial;
+			float currVal = motor[NV[i]->motor];
+			float target = NV[i]->target;
+			
+			switch(NV[i]->mode){ //Figure out what mode is being used.
+				case NV_MODE_STEP: //Go directly to target.
+					motor[NV[i]->motor] = NV[i]->target;
+					NV[i]->active = false;
+					break;
+				case NV_MODE_LINEAR: //Goes directly toward target, at acceleration of NV_acc.
+					if(abs(target - currVal) <= NV_acc){ //If it's so close who cares?
+						motor[NV[i]->motor] = target; //Just set it to the target.
+						NV[i]->active = false;
+					}
+					else{ //If we're appreciably above/below the target
+						motor[NV[i]->motor] += NV_acc * ((currVal < target)?1:-1); //Increase/decrease the speed of the motor by NV_acc.
+					}
+					break;
+				case NV_MODE_LOGISTIC: //Goes in a logistic curve (slow first, faster in middle, slow down as reaching it)
+					if(abs(currVal - initVal) < NV_LOGISTIC_CLOSEENOUGH){//Get it off the ground, since the logistic formula will return zero if we start at zero.
+						motor[NV[i]->motor] = currVal + NV_LOGISTIC_CLOSEENOUGH * ((currVal > initVal)?1:-1);
+					}
+					else if(abs(target - currVal) < NV_LOGISTIC_CLOSEENOUGH){//If it's close to endpoint, let's stop.
+						motor[NV[i]->motor] = target;
+						NV[i]->active = false;
+					}
+					else{ //Differential equation: dy/dx = maxSpeed(diff_from_end)(diff_from_beginning)/(end - start)
+						float change = (currVal - initVal) * (target - currVal) / (target - initVal);
+						change *= NV_acc * (target - initVal) / 4; //Normalize it so that the highest accel (in the very middle) is exactly NV_acc
+						motor[NV[i]->motor] += change;
+					}//Could this result in oscillation, with high enough acc and proper conditions??
+					break;
+				default:
+					NV[i]->mode = NV_DEFAULT_MODE; //Set it to default and wait until next time to do anything.
+					break;
+			}
 		}//end for loop
-		wait1Msec(NV_wait);
+		wait1Msec(NV_tick);
 	}//end while loop
 }
