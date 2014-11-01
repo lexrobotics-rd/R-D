@@ -30,8 +30,8 @@ OTHER NOTES
 Variables
 ---------
 
-For variables, use camelCase.  For constants, use capital letters and 
-underscores instead.
+For variables, use camelCase.  
+For constants, use capital letters and underscores instead.
 
 ```cpp
 int thisNumberCanChange;
@@ -58,8 +58,8 @@ task researchAndDevelop()
 Structs
 -------
 
-For struct definitions, use PascalCase.  For instances of structs, use 
-camelCase.
+For struct definitions, use PascalCase.  
+For instances of structs, use camelCase.
 
 ```cpp
 typedef struct {
@@ -72,8 +72,9 @@ MyWellNamedStruct wellNamedStructInstance;
 Hardware
 --------
 
-Use camelCase to name all motors, sensors, and servos.  In a tank drive 
-configuration, name the main drive motors `motorsLeft` and `motorsRight`.
+Use camelCase to name all motors, sensors, and servos.  
+In a tank drive configuration, name the main drive motors `motorsLeft` and 
+`motorsRight`.
 
 ```cpp
 #pragma config(Hubs,  S1, HTMotor,  HTMotor,  HTMotor,  HTServo)
@@ -94,9 +95,10 @@ configuration, name the main drive motors `motorsLeft` and `motorsRight`.
 Filenames
 ---------
 
-File and directory names should be written in PascalCase.  Executible files 
-(i.e. including a `task main()` should have a `.c` file extension.  Included 
-libraries should have a `.h` file extension.
+File and directory names should be written in PascalCase.  
+Executible files (i.e. including a `task main()` should have a `.c` file 
+extension.  
+Included libraries should have a `.h` file extension.
 
 ```cpp
 #include "Lib\LibraryOfAlexandria.h"
