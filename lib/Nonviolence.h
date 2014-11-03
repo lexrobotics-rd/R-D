@@ -26,18 +26,19 @@ When moving: (instead of motor[motorsLeft] = 100;)
 Note that this uses a task. The NXT is (apparently) limited to 5 tasks, so be careful of this limit!
 Note also that the NXT is not actually thread-safe, even though it has multiple "threads" running "concurrently."
 This also has a ton of global constants, all prefixed with NV_.
-This also contains a function, and if you ever run up against the ROBOTC 256-function limit... what are you even doing?
+This also contains a single function, and if you ever run up against the ROBOTC 256-function limit... what are you even doing?
 */
 
 
 // STUFF YOU MIGHT WANT TO DEFINE
-//Must both be positive.
+//Must all three be positive.
 const int NV_tick = 100; //Milliseconds per clocktick of the Nonviolence task.
 const int NV_acc = 1; //How much to increase/decrease the motor per NV_tick milliseconds. Serves as maximum acceleration for nonlinear modes.
+const int NV_max = 90; //built in PID sometimes deals badly with motor = 100
 
 // STUFF YOU SHOULDN'T TOUCH
 //# of motors
-const int numMotors = kNumbOfTotalMotors;
+const int NV_numMotors = kNumbOfTotalMotors;
 
 //Constants for nonviolence modes.
 const int NV_MODE_STEP = 0;
@@ -56,13 +57,13 @@ const int NV_LOGISTIC_CLOSEENOUGH = 2;
 //	signed int mode; //Mode - see above
 //	bool active;
 //}NV_motorproperties;
-//NV_motorproperties NV[numMotors]; //declares array of motors (called "NV") of NV_motorproperties's.
+//NV_motorproperties NV[NV_numMotors]; //declares array of motors (called "NV") of NV_motorproperties's.
 
-signed int NV_mtr[numMotors];
-signed int NV_initial[numMotors];
-signed int NV_target[numMotors];
-signed int NV_mode[numMotors];
-bool NV_active[numMotors];
+signed int NV_mtr[NV_numMotors];
+signed int NV_initial[NV_numMotors];
+signed int NV_target[NV_numMotors];
+signed int NV_mode[NV_numMotors];
+bool NV_active[NV_numMotors];
 
 /*
 The "NV" Motor Queue
@@ -78,9 +79,9 @@ Mainly, because ROBOTC is really annoying.
 
 void nonviolence(tMotor newInputMotor, int target, int mode = NV_DEFAULT_MODE){
 	//Make sure we're not doing weird stuff with over-100 values.
-	target = (target > 100)? 100 : (target < -100)? -100 : target;
+	target = (target > NV_max)? NV_max : (target < -NV_max)? -NV_max : target;
 
-	for(int i = 0; i < numMotors; i++)
+	for(int i = 0; i < NV_numMotors; i++)
 		if(NV_mtr[i] == newInputMotor || NV_active[i] == false){ //Unnecessarily initializes some motors. But it works perfectly well.
 			NV_mtr[i] = newInputMotor;
 			NV_initial[i] = motor[newInputMotor];
@@ -92,11 +93,11 @@ void nonviolence(tMotor newInputMotor, int target, int mode = NV_DEFAULT_MODE){
 }
 
 task nonviolenceTask{
-	for(int i = 0; i < numMotors; i++) //Initializes Nonviolence motor array
+	for(int i = 0; i < NV_numMotors; i++) //Initializes Nonviolence motor array
 		NV_active[i] = false; //By default, none of the queued motors are active.
 
 	while(true){
-		for(int i = 0; i < numMotors; i++){//Check on all the motors, inc if necessary.
+		for(int i = 0; i < NV_numMotors; i++){//Check on all the motors, inc if necessary.
 			if(!NV_active[i]) continue; //This queued motor isn't active. Skip.
 
 			float initVal = NV_initial[i];
@@ -109,12 +110,12 @@ task nonviolenceTask{
 					NV_active[i] = false;
 					break;
 				case NV_MODE_LINEAR: //Goes directly toward target, at acceleration of NV_acc.
+					writeDebugStreamLine("motorval %d  currVal %d  target %d",motor[NV_mtr[i]],currVal,target);
 					if(abs(target - currVal) <= NV_acc){ //If it's so close who cares?
 						motor[NV_mtr[i]] = target; //Just set it to the target.
-						NV_active[i] = false;
+					//	NV_active[i] = false;
 					}
 					else{ //If we're appreciably above/below the target
-						writeDebugStreamLine("motorval %d  currVal %d  target %d",motor[NV_mtr[i]],currVal,target);
 						motor[NV_mtr[i]] += NV_acc * ((currVal < target)?1:-1); //Increase/decrease the speed of the motor by NV_acc.
 					}
 					break;
