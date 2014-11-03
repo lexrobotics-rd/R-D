@@ -32,8 +32,8 @@ This also contains a function, and if you ever run up against the ROBOTC 256-fun
 
 // STUFF YOU MIGHT WANT TO DEFINE
 //Must both be positive.
-const int NV_tick = 10; //Milliseconds per clocktick of the Nonviolence task.
-const int NV_acc = 3; //How much to increase/decrease the motor per NV_tick milliseconds. Serves as maximum acceleration for nonlinear modes.
+const int NV_tick = 100; //Milliseconds per clocktick of the Nonviolence task.
+const int NV_acc = 1; //How much to increase/decrease the motor per NV_tick milliseconds. Serves as maximum acceleration for nonlinear modes.
 
 // STUFF YOU SHOULDN'T TOUCH
 //# of motors
@@ -49,13 +49,20 @@ const int NV_DEFAULT_MODE = NV_MODE_LINEAR;
 const int NV_LOGISTIC_CLOSEENOUGH = 2;
 
 //Motor Properties variable structure
-typedef struct{
-	signed int motor; //motor number ("motorsLeft" and "motorsRight" are actually stored as integers)
-	signed int initial; //Initial speed
-	signed int target; //Target speed
-	signed int mode; //Mode - see above
-	bool active;
-}NV_motorproperties;
+//typedef struct{
+//	signed int mtr; //motor number ("motorsLeft" and "motorsRight" are actually stored as integers)
+//	signed int initial; //Initial speed
+//	signed int target; //Target speed
+//	signed int mode; //Mode - see above
+//	bool active;
+//}NV_motorproperties;
+//NV_motorproperties NV[numMotors]; //declares array of motors (called "NV") of NV_motorproperties's.
+
+signed int NV_mtr[numMotors];
+signed int NV_initial[numMotors];
+signed int NV_target[numMotors];
+signed int NV_mode[numMotors];
+bool NV_active[numMotors];
 
 /*
 The "NV" Motor Queue
@@ -68,66 +75,65 @@ Why do we need it? To support multiple motors running at once.
 Also, because there is no way to access the list of motor numbers currently available, so they must be added on sight.
 Mainly, because ROBOTC is really annoying.
 */
-NV_motorproperties NV[numMotors]; //declares array of motors (called "NV") of NV_motorproperties's.
 
 void nonviolence(tMotor newInputMotor, int target, int mode = NV_DEFAULT_MODE){
 	//Make sure we're not doing weird stuff with over-100 values.
-	target = min(target, 100);
-	target = max(target, -100);
-	
+	target = (target > 100)? 100 : (target < -100)? -100 : target;
+
 	for(int i = 0; i < numMotors; i++)
-		if(NV[i]->motor == newInputMotor || NV[i]->active == false){ //Unnecessarily initializes some motors. But it works perfectly well.
-			NV[i]->motor = newInputMotor;
-			NV[i]->initial = motor[newInputMotor];
-			NV[i]->target = target;
-			NV[i]->mode = mode;
-			NV[i]->active = true;
+		if(NV_mtr[i] == newInputMotor || NV_active[i] == false){ //Unnecessarily initializes some motors. But it works perfectly well.
+			NV_mtr[i] = newInputMotor;
+			NV_initial[i] = motor[newInputMotor];
+			NV_target[i] = target;
+			NV_mode[i] = mode;
+			NV_active[i] = true;
 			break;
 		}
 }
 
 task nonviolenceTask{
 	for(int i = 0; i < numMotors; i++) //Initializes Nonviolence motor array
-		NV[i]->active = false; //By default, none of the queued motors are active.
-	
+		NV_active[i] = false; //By default, none of the queued motors are active.
+
 	while(true){
 		for(int i = 0; i < numMotors; i++){//Check on all the motors, inc if necessary.
-			if(!NV[i]->active) continue; //This queued motor isn't active. Skip.
-			
-			float initVal = NV[i]->initial;
-			float currVal = motor[NV[i]->motor];
-			float target = NV[i]->target;
-			
-			switch(NV[i]->mode){ //Figure out what mode is being used.
+			if(!NV_active[i]) continue; //This queued motor isn't active. Skip.
+
+			float initVal = NV_initial[i];
+			float currVal = motor[NV_mtr[i]];
+			float target = NV_target[i];
+
+			switch(NV_mode[i]){ //Figure out what mode is being used.
 				case NV_MODE_STEP: //Go directly to target.
-					motor[NV[i]->motor] = NV[i]->target;
-					NV[i]->active = false;
+					motor[NV_mtr[i]] = NV_target[i];
+					NV_active[i] = false;
 					break;
 				case NV_MODE_LINEAR: //Goes directly toward target, at acceleration of NV_acc.
 					if(abs(target - currVal) <= NV_acc){ //If it's so close who cares?
-						motor[NV[i]->motor] = target; //Just set it to the target.
-						NV[i]->active = false;
+						motor[NV_mtr[i]] = target; //Just set it to the target.
+						NV_active[i] = false;
 					}
 					else{ //If we're appreciably above/below the target
-						motor[NV[i]->motor] += NV_acc * ((currVal < target)?1:-1); //Increase/decrease the speed of the motor by NV_acc.
+						writeDebugStreamLine("motorval %d  currVal %d  target %d",motor[NV_mtr[i]],currVal,target);
+						motor[NV_mtr[i]] += NV_acc * ((currVal < target)?1:-1); //Increase/decrease the speed of the motor by NV_acc.
 					}
 					break;
 				case NV_MODE_LOGISTIC: //Goes in a logistic curve (slow first, faster in middle, slow down as reaching it)
 					if(abs(currVal - initVal) < NV_LOGISTIC_CLOSEENOUGH){//Get it off the ground, since the logistic formula will return zero if we start at zero.
-						motor[NV[i]->motor] = currVal + NV_LOGISTIC_CLOSEENOUGH * ((currVal > initVal)?1:-1);
+						motor[NV_mtr[i]] = currVal + NV_LOGISTIC_CLOSEENOUGH * ((currVal > initVal)?1:-1);
 					}
 					else if(abs(target - currVal) < NV_LOGISTIC_CLOSEENOUGH){//If it's close to endpoint, let's stop.
-						motor[NV[i]->motor] = target;
-						NV[i]->active = false;
+						motor[NV_mtr[i]] = target;
+						NV_active[i] = false;
 					}
 					else{ //Differential equation: dy/dx = maxSpeed(diff_from_end)(diff_from_beginning)/(end - start)
 						float change = (currVal - initVal) * (target - currVal) / (target - initVal);
 						change *= NV_acc * (target - initVal) / 4; //Normalize it so that the highest accel (in the very middle) is exactly NV_acc
-						motor[NV[i]->motor] += change;
+						motor[NV_mtr[i]] += change;
 					}//Could this result in oscillation, with high enough acc and proper conditions??
 					break;
 				default:
-					NV[i]->mode = NV_DEFAULT_MODE; //Set it to default and wait until next time to do anything.
+					NV_mode[i] = NV_DEFAULT_MODE; //Set it to default and wait until next time to do anything.
 					break;
 			}
 		}//end for loop

@@ -21,10 +21,12 @@ task main()
 	startTask(nonviolenceTask);
 
 	const int w = 5000;
-	motor[oneMotorToRuleThemAll] = 50;
-	wait1Msec(w);
+	motor[oneMotorToRuleThemAll] = 100;
+	wait1Msec(1000);
 	motor[oneMotorToRuleThemAll] = 0;
-	wait1Msec(w);
+	//wait1Msec(1000);
+	motor[oneMotorToRuleThemAll] = 2;
+	wait1Msec(10000);
 	displayCenteredTextLine(0, "%d", nMotorEncoder[oneMotorToRuleThemAll]);
 
 	playSound(soundBeepBeep);
@@ -35,7 +37,9 @@ task main()
 	nonviolence(oneMotorToRuleThemAll,0);
 	wait1Msec(w);
 	displayCenteredTextLine(2, "%d", nMotorEncoder[oneMotorToRuleThemAll]);
-	playSound(soundBeepBeep);
+	playSound(soundBeepBeep);	playSound(soundBeepBeep);
+
+	for(;;);
 
 	stopTask(nonviolenceTask);
 }
