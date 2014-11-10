@@ -3,7 +3,7 @@ LexRobotics R&D Repository
 
 ---
 
-Hello! You're now in the "Research and Development" code repository 
+Hello! You're now in the "Research and Development" ~~code~~ highly purified epicness repository 
 (shared between Two Bits and Parity Bits), where we develop "advanced" 
 (whatever that means) stuff not necessarily related to the robot. 
 Not even necessarily in ROBOTC or even vaguely connectable to the team.
