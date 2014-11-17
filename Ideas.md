@@ -11,12 +11,12 @@ Everyone hates RobotC. Why don't we write an interpreter from an abstracted, rea
 
 
 
-Minibots
+Swarmbots/Minibots
 --------
 Okay, so FIRST says the robot cannot drop off parts of itself.
 Why don't we have a 9V battery on a protoboard on a minibot which is connected to the main robot via STRING?
 XD it'll be awesome. And FRC has a very similar subchallenge.
-
+Swarmbots are something different entirely, and are much, much cooler.
 
 
 Walking/Hopping
