@@ -18,7 +18,7 @@ Interface (CLI), which involves entering text into a terminal emulator (for
 Macs, this is Terminal.app). Don't worry if you don't understand all the
 programming terminology – it will get more familiar to you as you use it!
 
-![The Github logo](octocat.jpg)
+![The Github Logo](http://romain.therrat.fr/wp-content/plugins/better-github-widget/octocat.png)
 
 One of the major benefits of Git is its ubiquity. Git comes preinstalled on all
 Mac and Linux computers, and a simple installation file is available on
@@ -72,7 +72,7 @@ Introducing Git Commands
 When you first learn these commands, it may feel like you are just banging your
 hands on the keyboard. Don't worry about it, _it will get easier_.
 
-![cs.cmu.edu](programming.gif)
+![What Programming Feels Like](http://www.cs.cmu.edu/~cangiuli/img/angry.gif)
 
 Git Workflow
 ------------
