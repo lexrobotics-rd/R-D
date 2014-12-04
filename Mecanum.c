@@ -18,6 +18,7 @@ LastUpdatedBy: DaveyWavey
 /*
 MOUNTING THE WHEELS:
 -----Critically, the rollers must be parallel to the slashes in the diagram.-----
+-----Or maybe not so critically??-----
 [\\]   [fwd]    [//]
 [\\]            [//]
 [\\]            [//]
@@ -33,9 +34,14 @@ MOUNTING THE WHEELS:
 
 #include "JoystickDriver.c"
 
+float normalize10(float x){
+	if(abs(x) < 10) return 0;
+	else return x;
+}
+
 task main(){
   //Normalize it so it'll never go out of range of the motor and thus mess up the movement. [MAY MAKE IT SLOWISH]
-  //  Joystick values are from -128 to 128, and there are three that can add up together.
+  //  Joystick values are from -128 to 128, and there are three that can add up together, so divide by 3 to normalize.
   //  Motor values are from -100 to 100.
   float factor = 100.0 / 128.0 / 3.0;
   int fwd, side, rot;
@@ -43,16 +49,11 @@ task main(){
   while(1){
     getJoystickSettings(joystick); //Get joystick settings and put them into variable "joystick". (not needed for joybtns I don't think)
 
-    //Each between -128 and 128.
-    fwd = joystick.joy1_y1; //Moves forward/backward based on the left-side joystick forward/backward direction.
-    side = joystick.joy1_x1; //Moves side-to-side based on the left-side joystick sideways direction.
-    rot = joystick.joy1_x2; //Rotates based on the right-side joystick sideways direction.
-    //rot = 0; //Test with just translational motion first! Then replace this with the above line.
-
-    //Make sure drift is not allowed
-    if(abs(fwd) < 10) fwd = 0;
-    if(abs(side) < 10) side = 0;
-    if(abs(rot) < 10) rot = 0;
+    //(Each joystick value is between -128 and 128.)
+    //Normalize to make sure drift doesn't happen when joystick values are slightly off.
+	fwd = normalize10(joystick.joy1_y1); //Moves forward/backward based on the left-side joystick forward/backward direction.
+	side = normalize10(joystick.joy1_x1); //Moves side-to-side based on the left-side joystick sideways direction.
+	rot = normalize10(joystick.joy1_x2); //Rotates based on the right-side joystick sideways direction.
 
     //The magic Mecanum additions and subtractions, derived via lots of diagrams and logic.
     //  Fwd is obvious - all the wheels have to go forward.
@@ -61,13 +62,10 @@ task main(){
     //  Rotation is similar - to move the front wheels and back wheels to different sides, move them in the same opposite directions.
     //    It's probably quite difficult to quantify with encoders etc. exactly what's going on with rotation, so gyros are good.
     //    Come to think of it quantifying diagonal translation may also be awkward.
-    if(abs(factor * (fwd + side - rot)) < 10) motor[motorFrontLeft] = 0;
-   	else motor[motorFrontLeft] = factor * (fwd + side - rot);
-    if(abs(factor * (fwd - side + rot)) < 10) motor[motorFrontRight] = 0;
-   	else motor[motorFrontRight] = factor * (fwd - side + rot);
-    if(abs(factor * (fwd - side - rot)) < 10) motor[motorBackLeft] = 0;
-   	else motor[motorBackLeft] = factor * (fwd - side - rot);
-   	if(abs(factor * (fwd + side + rot)) < 10) motor[motorBackRight] = 0;
-   	else motor[motorBackRight] = factor * (fwd + side + rot);
+	//  The Normalizes are necessary to prevent motor jerking back and forth on small values.
+   	motor[motorFrontLeft] = normalize10(factor * (fwd + side - rot));
+    motor[motorFrontRight] = normalize10(factor * (fwd - side + rot));
+    motor[motorBackLeft] = normalize10(factor * (fwd - side - rot));
+   	motor[motorBackRight] = normalize10(factor * (fwd + side + rot));
   }
 }
