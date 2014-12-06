@@ -8,10 +8,10 @@
 
 /*
 Mecanum.c
-A basic testfile for Mecanum stuff. Hopefully to be used on Wednesday 11/12, if the axles come in.
+A testfile for developing Mecanum drive capabilities.
 
-LastUpdatedOn: 12/3
-LastUpdatedBy: DaveyWavey
+LastUpdatedOn: 12/6
+LastUpdatedBy: Clive
 */
 
 
@@ -35,25 +35,24 @@ MOUNTING THE WHEELS:
 #include "JoystickDriver.c"
 
 float normalize10(float x){
-	if(abs(x) < 10) return 0;
-	else return x;
+	if(abs(x) < 10) return 0; else return x;
 }
 
 task main(){
   //Normalize it so it'll never go out of range of the motor and thus mess up the movement. [MAY MAKE IT SLOWISH]
   //  Joystick values are from -128 to 128, and there are three that can add up together, so divide by 3 to normalize.
   //  Motor values are from -100 to 100.
-  float factor = 100.0 / 128.0 / 3.0;
-  int fwd, side, rot;
+  const float JoyToWheel = 100.0 / 128.0 / 3.0;
+  int vFwd, vSide, vRot; //Forward, Side, and Rotational velocities
 
   while(1){
     getJoystickSettings(joystick); //Get joystick settings and put them into variable "joystick". (not needed for joybtns I don't think)
 
     //(Each joystick value is between -128 and 128.)
     //Normalize to make sure drift doesn't happen when joystick values are slightly off.
-	fwd = normalize10(joystick.joy1_y1); //Moves forward/backward based on the left-side joystick forward/backward direction.
-	side = normalize10(joystick.joy1_x1); //Moves side-to-side based on the left-side joystick sideways direction.
-	rot = normalize10(joystick.joy1_x2); //Rotates based on the right-side joystick sideways direction.
+	vFwd = normalize10(joystick.joy1_y1); //Moves forward/backward based on the left-side joystick forward/backward direction.
+	vSide = normalize10(joystick.joy1_x1); //Moves side-to-side based on the left-side joystick sideways direction.
+	vRot = normalize10(joystick.joy1_x2); //Rotates based on the right-side joystick sideways direction.
 
     //The magic Mecanum additions and subtractions, derived via lots of diagrams and logic.
     //  Fwd is obvious - all the wheels have to go forward.
@@ -63,9 +62,30 @@ task main(){
     //    It's probably quite difficult to quantify with encoders etc. exactly what's going on with rotation, so gyros are good.
     //    Come to think of it quantifying diagonal translation may also be awkward.
 	//  The Normalizes are necessary to prevent motor jerking back and forth on small values.
-   	motor[motorFrontLeft] = normalize10(factor * (fwd + side - rot));
-    motor[motorFrontRight] = normalize10(factor * (fwd - side + rot));
-    motor[motorBackLeft] = normalize10(factor * (fwd - side - rot));
-   	motor[motorBackRight] = normalize10(factor * (fwd + side + rot));
+   	motor[motorFrontLeft] = normalize10(JoyToWheel * (vFwd + vSide - vRot));
+    motor[motorFrontRight] = normalize10(JoyToWheel * (vFwd - vSide + vRot));
+    motor[motorBackLeft] = normalize10(JoyToWheel * (vFwd - vSide - vRot));
+   	motor[motorBackRight] = normalize10(JoyToWheel * (vFwd + vSide + vRot));
+	
+	/*
+	Speculations:
+	
+	For encoders, reverse-solving the original motor formulae:
+	//I seriously doubt this will do anything correctly, especially on rotation.
+	double deltaFwd = k * (deltaEncFL + deltaEncFR)/2.0;
+	double deltaSide = k * (deltaEncFL - deltaEncBL)/2.0;
+	double deltaRot = k * (deltaEncFR - deltaEncBL)/2.0;
+	(BR should equal FL + FR - BL, so BR is redundant)
+	(After doing the deltas, add them to totals so we can track fwd, side, and rot motion.
+		Or actually just adding the vFwd, vSide, and vRot is usually easier and more accurate for that, but encoders don't drift.)
+	
+	
+	For rotate-while-translating: It's been done! https://www.youtube.com/watch?v=sM8cixsE5fo&feature=plcp
+	t = ??? * currentOrientation; //Orientation is probably best measured with gyro; you COULD do it with integral(vRot) though.
+	[ vFwd  ] = [ cos(t)  -sin(t) ] * [ vFwd  ]     //depends on correct directionality of rotation, may have to switch +/-sin
+	[ vSide ]   [ sin(t)   cos(t) ]   [ vSide ]
+	Rotation matrix, which changes the requested vFwd and vSide so they are corrected for rotation. (keeps nonrotating frame of reference)
+	Random idea: https://www.youtube.com/watch?v=igaGWlMFdSw
+	*/
   }
 }
