@@ -40,9 +40,21 @@ MOUNTING THE WHEELS:
 float normalize10(float x){
 	if(abs(x) < 10) return 0; else return x;
 }
+float normalize(float x, float limit){
+	if(abs(x) < abs(limit)) return 0; else return x;
+}
 
 
 int max(int a, int b){
+	if(a > b) return a;
+	else return b;
+}
+
+float min(float a, float b){
+	if(a < b) return a;
+	else return b;
+}
+float max(float a, float b){
 	if(a > b) return a;
 	else return b;
 }
@@ -124,27 +136,30 @@ task main(){
 
 		//ROTATION-CAPABLE AUGMENTED-TANK-DRIVE
 
-	  x1 = normalize10(joystick.joy1_x1);
-	  y1 = normalize10(joystick.joy1_y1);
-	  x2 = normalize10(joystick.joy1_x2);
-	  y2 = normalize10(joystick.joy1_y2);
+	  x1 = normalize(joystick.joy1_x1,4);
+	  y1 = normalize(joystick.joy1_y1,4);
+	  x2 = normalize(joystick.joy1_x2,4);
+	  y2 = normalize(joystick.joy1_y2,4);
 
 	  //Takes the averages of the x and y values for the joysticks, and makes them the x/y translations, so it acts just like augmented-tank original.
 	  float translationX = (x1 + x2)/2.0;
 	  float translationY = (y1 + y2)/2.0;
 	  //Determines the difference of the vectors to determine the rotation.
-	  float rotation = (y2 - y1)/2.0;
+	  float rotation = (y1 - y2)/2.0;
 	  float theta = 0;
 
 	  rotate(translationX, translationY, theta);
 
-	  float JoyToWheel = 95.0 / (abs(translationY) + abs(translationX) + abs(rotation));
+	  float JoyToWheel = min(95.0 / (abs(translationY) + abs(translationX) + abs(rotation)), 1.0);
 
-	  motor[motorFrontLeft] = normalize10(JoyToWheel * (translationY + translationX - rotation));
-	  motor[motorFrontRight] = normalize10(JoyToWheel * (translationY - translationX + rotation));
-	  motor[motorBackLeft] = normalize10(JoyToWheel * (translationY - translationX - rotation));
-	  motor[motorBackRight] = normalize10(JoyToWheel * (translationY + translationX + rotation));
+	  	//If it's potentially going above 95, block it from doing so; otherwise just let the speed be proportional to the joysticks.
+	  	//Also, the division-by-zero isn't a problem anymore.
 
+	  //used to normalize10 for protecting motors; now we don't so motors don't lock up.
+	  motor[motorFrontLeft] = (JoyToWheel * (translationY + translationX - rotation));
+	  motor[motorFrontRight] = (JoyToWheel * (translationY - translationX + rotation));
+	  motor[motorBackLeft] = (JoyToWheel * (translationY - translationX - rotation));
+	  motor[motorBackRight] = (JoyToWheel * (translationY + translationX + rotation));
 
 
 
