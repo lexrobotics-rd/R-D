@@ -1,5 +1,5 @@
 #pragma config(Hubs,  S1, HTMotor,  HTMotor,  none,     none)
-#pragma config(Sensor, S1,     ,               sensorI2CMuxController)
+#pragma config(Sensor, S2,     gyro,           sensorI2CCustom)
 #pragma config(Motor,  mtr_S1_C1_1,     motorFrontLeft, tmotorTetrix, PIDControl)
 #pragma config(Motor,  mtr_S1_C1_2,     motorBackLeft, tmotorTetrix, PIDControl)
 #pragma config(Motor,  mtr_S1_C2_1,     motorBackRight, tmotorTetrix, PIDControl, reversed)
@@ -10,8 +10,9 @@
 Mecanum.c
 A testfile for developing Mecanum drive capabilities.
 
-LastUpdatedOn: 12/8
-LastUpdatedBy: Clive, David, [i don't know how to spell your name sorry]
+LastUpdatedOn: 12/17
+LastUpdatedBy: Clive
+Status: the gyro capability is entirely untested (don't know if it compiles)
 */
 
 
@@ -30,16 +31,10 @@ MOUNTING THE WHEELS:
 [//]   [back]   [\\]
 */
 
-
-
 #include "JoystickDriver.c"
+#include "drivers/hitechnic-gyro.h"
+#include "lib/T4Calculus.h"
 
-
-
-
-float normalize10(float x){
-	if(abs(x) < 10) return 0; else return x;
-}
 float normalize(float x, float limit){
 	if(abs(x) < abs(limit)) return 0; else return x;
 }
@@ -69,8 +64,9 @@ t = ??? * currentOrientation; //Orientation is probably best measured with gyro;
 Rotation matrix, which changes the requested vFwd and vSide so they are corrected for rotation. (keeps nonrotating frame of reference)
 Random idea: https://www.youtube.com/watch?v=igaGWlMFdSw
 */
-void rotate(float &x, float &y, float t){
+void rotateXY(float &x, float &y, float t){
 	float oldx = x, oldy = y;
+	//cos and sin are radians
 	x = oldx * cos(t) - oldy * sin(t);
 	y = oldx * sin(t) + oldy * cos(t);
 }
@@ -80,7 +76,17 @@ task main(){
   //int vFwd, vSide, vRot; //Forward, Side, and Rotational velocities
 
   int x1, y1, x2, y2;
-
+  
+  //Assumes that it starts with forward pointing
+  //in the desired permanent definition of "forward"
+  //Integrator object for gyro angle
+  INTR angleintr; initIntr(angleintr);
+  
+  //Initiate gyro
+  nSchedulePriority = kHighPriority;
+  HTGYROstartCal(gyro);
+  wait1Msec(1000); //and give it a bit of time
+  
   while(1){
     getJoystickSettings(joystick); //Get joystick settings and put them into variable "joystick". (not needed for joybtns I don't think)
 
@@ -89,9 +95,9 @@ task main(){
 
 	  //(Each joystick value is between -128 and 128.)
 	  //Normalize to make sure drift doesn't happen when joystick values are slightly off.
-		vFwd = normalize10(joystick.joy1_y1); //Moves forward/backward based on the left-side joystick forward/backward direction.
-		vSide = normalize10(joystick.joy1_x1); //Moves side-to-side based on the left-side joystick sideways direction.
-		vRot = normalize10(joystick.joy1_x2); //Rotates based on the right-side joystick sideways direction.
+		vFwd = normalize(joystick.joy1_y1,10); //Moves forward/backward based on the left-side joystick forward/backward direction.
+		vSide = normalize(joystick.joy1_x1,10); //Moves side-to-side based on the left-side joystick sideways direction.
+		vRot = normalize(joystick.joy1_x2,10); //Rotates based on the right-side joystick sideways direction.
 
 	  //The magic Mecanum additions and subtractions, derived via lots of diagrams and logic.
 	  //  Fwd is obvious - all the wheels have to go forward.
@@ -100,10 +106,10 @@ task main(){
 	  //  Rotation is similar - to move the front wheels and back wheels to different sides, move them in the same opposite directions.
 	  //    It's probably quite difficult to quantify with encoders etc. exactly what's going on with rotation, so gyros are good.
 	  //    Come to think of it quantifying diagonal translation may also be awkward.
-	   	motor[motorFrontLeft] = normalize10(JoyToWheel * (vFwd + vSide - vRot));
-	    motor[motorFrontRight] = normalize10(JoyToWheel * (vFwd - vSide + vRot));
-	    motor[motorBackLeft] = normalize10(JoyToWheel * (vFwd - vSide - vRot));
-	   	motor[motorBackRight] = normalize10(JoyToWheel * (vFwd + vSide + vRot));
+	   	motor[motorFrontLeft] = normalize(JoyToWheel * (vFwd + vSide - vRot),10);
+	    motor[motorFrontRight] = normalize(JoyToWheel * (vFwd - vSide + vRot),10);
+	    motor[motorBackLeft] = normalize(JoyToWheel * (vFwd - vSide - vRot),10);
+	   	motor[motorBackRight] = normalize(JoyToWheel * (vFwd + vSide + vRot),10);
     */
 
 
@@ -111,10 +117,10 @@ task main(){
     /*
     //FANCY NEW AUGMENTED-TANK JOYSTICKING SYSTEM
 
-	  x1 = normalize10(joystick.joy1_x1);
-	  x2 = normalize10(joystick.joy1_x2);
-	  y1 = normalize10(joystick.joy1_y1);
-	  y2 = normalize10(joystick.joy1_y2);
+	  x1 = normalize(joystick.joy1_x1,10);
+	  x2 = normalize(joystick.joy1_x2,10);
+	  y1 = normalize(joystick.joy1_y1,10);
+	  y2 = normalize(joystick.joy1_y2,10);
 
 	  //Find the maximum possible combination that we use in the formula, and normalize to make it 95 (less than 100, to be safe about it).
 	  //	Because if it goes over 100, it'll truncate and it'll mess up alignment of motion.
@@ -125,10 +131,10 @@ task main(){
 		//The Normalizes are necessary to prevent motor jerking back and forth on small values.
 	  //Translation is achieved by moving both joysticks in the same direction.
 	  //Rotation is achieved by having any difference in the joysticks (e.g. typical tank-drive turning.)
-	  motor[motorFrontLeft] = normalize10(y2 + x2) * JoyToWheel;
-	  motor[motorFrontRight] = normalize10(y1 - x1) * JoyToWheel;
-	  motor[motorBackLeft] = normalize10(y2 - x1) * JoyToWheel;
-	  motor[motorBackRight] = normalize10(y1 + x2) * JoyToWheel;
+	  motor[motorFrontLeft] = normalize(y2 + x2,10) * JoyToWheel;
+	  motor[motorFrontRight] = normalize(y1 - x1,10) * JoyToWheel;
+	  motor[motorBackLeft] = normalize(y2 - x1,10) * JoyToWheel;
+	  motor[motorBackRight] = normalize(y1 + x2,10) * JoyToWheel;
 		//This system does not lend itself to rotation-while-translating, since it's hard to track x and y translational components.
 		*/
 
@@ -146,22 +152,19 @@ task main(){
 	  float translationY = (y1 + y2)/2.0;
 	  //Determines the difference of the vectors to determine the rotation.
 	  float rotation = (y1 - y2)/2.0;
-	  float theta = 0;
 
-	  rotate(translationX, translationY, theta);
+	  float currtheta = integrate(angleintr, HTGYROreadRot(gyro) * 3.141592653589 / 180.0);
+	  rotateXY(translationX, translationY, currtheta);
 
+	  //If it's potentially going above 95, block it from doing so; otherwise just let the speed be proportional to the joysticks.
+	  //As a nice side effect, the division-by-zero isn't a problem anymore.
 	  float JoyToWheel = min(95.0 / (abs(translationY) + abs(translationX) + abs(rotation)), 1.0);
 
-	  	//If it's potentially going above 95, block it from doing so; otherwise just let the speed be proportional to the joysticks.
-	  	//Also, the division-by-zero isn't a problem anymore.
-
-	  //used to normalize10 for protecting motors; now we don't so motors don't lock up.
+	  //used to normalize for protecting motors from fluctuations; now we don't so motors don't lock up and drag.
 	  motor[motorFrontLeft] = (JoyToWheel * (translationY + translationX - rotation));
 	  motor[motorFrontRight] = (JoyToWheel * (translationY - translationX + rotation));
 	  motor[motorBackLeft] = (JoyToWheel * (translationY - translationX - rotation));
 	  motor[motorBackRight] = (JoyToWheel * (translationY + translationX + rotation));
-
-
 
 		/*
 		Encoder speculations:
@@ -176,8 +179,5 @@ task main(){
 		(After doing the deltas, add them to totals so we can track fwd, side, and rot motion.
 			Or actually just adding the vFwd, vSide, and vRot is usually easier and more accurate for that, but encoders don't drift.)
 		*/
-
-
-
   }
 }
