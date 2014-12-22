@@ -83,6 +83,8 @@ task main(){
   //Integrator object for gyro angle
   INTR angleintr; initIntr(angleintr);
 
+  //nMotorPIDSpeedCtrl?
+
   //Initiate gyro
   nSchedulePriority = kHighPriority;
   HTGYROstartCal(gyro);
@@ -143,17 +145,17 @@ task main(){
 
 		//ROTATION-CAPABLE AUGMENTED-TANK-DRIVE
 
-	  x1 = normalize(joystick.joy1_x1,8);
-	  y1 = normalize(joystick.joy1_y1,8);
-	  x2 = normalize(joystick.joy1_x2,8);
-	  y2 = normalize(joystick.joy1_y2,8);
+	  x1 = normalize(joystick.joy1_x1,3);
+	  y1 = normalize(joystick.joy1_y1,3);
+	  x2 = normalize(joystick.joy1_x2,3);
+	  y2 = normalize(joystick.joy1_y2,3);
 	nxtDisplayCenteredBigTextLine(5,"%f",joystick.joy1_x1);
 
 	  //Takes the averages of the x and y values for the joysticks, and makes them the x/y translations, so it acts just like augmented-tank original.
-	  float translationX = x1;(x1 + x2)/2.0;
-	  float translationY = y1;(y1 + y2)/2.0;
+	  float translationX = (x1 + x2)/2.0;
+	  float translationY = (y1 + y2)/2.0;
 	  //Determines the difference of the vectors to determine the rotation.
-	  float rotation = x2;(y1 - y2)/2.0;
+	  float rotation = (y1 - y2)/2.0;
 
 	  //(gyro reading is in degrees, so the integral is too)
 	  float currtheta = integrate(angleintr, HTGYROreadRot(gyro));nxtDisplayCenteredBigTextLine(3,"%f", integrate(angleintr, HTGYROreadRot(gyro)));//If gyro turns out badly, just set this back to 0.
