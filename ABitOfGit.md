@@ -20,11 +20,11 @@ programming terminology – it'll get more familiar to you as you use it!
 
 ![The Github Logo](http://romain.therrat.fr/wp-content/plugins/better-github-widget/octocat.png)
 
-One of the major benefits of Git is its ubiquity. Git comes preinstalled on all 
-Mac and Linux computers, and a simple installation file is available on 
-Windows. Additionally, Git will store the code history of your project as it 
-progresses, making the process of reverting recent, and sometimes harmful, 
-changes a breeze.
+One of the major benefits of Git is its ubiquity. Git comes preinstalled on 
+just about all Mac and Linux computers, and a simple installation file is 
+available for Windows. Additionally, Git will store the code history of your 
+project as it progresses, making the process of reverting recent, unwanted, or 
+harmful changes a breeze.
 
 Windows Installation Guide
 --------------------------
@@ -92,6 +92,15 @@ If Git only tracked the changes you make to your code, it would be a pretty
 boring piece of software. However, Git can do so much more than that! Let's 
 have a look at some of Git's more advanced functionality:
 
+- `git rm [file]`: deletes a file from the directory and stages the deletion.
+```
+git rm log.txt
+```  
+If I catch anyone deleting log files, I will not be amused.
+- `git rm --cached [file]`: deletes a file from version control but saves a 
+  version on the local system. Similar to putting a file in the recycle bin.
+- `git mv [file] [newname]`: renames a file and stages the rename. It is best 
+  to restrict the use of `git mv`s to keep confusion to a minimum.
 - `git status`: lists all files whose changes have been staged but not yet 
   committed. You should do a `git status` before each `git commit`, and if 
   you've changed more than a couple files, you should be committing more 
@@ -100,6 +109,10 @@ have a look at some of Git's more advanced functionality:
 - `git diff --staged`: shows file changes between the staged files and git's 
   previous version of each file. This command is like a more specific 
   `git status`.
+- `git log`: lists the complete version history of the project, including the 
+  date, message, and author of each commit.
+- `git log --follow [file]`: lists the history of one specific file, including 
+  renames. A very useful command.
 
 FAQ
 ---
@@ -108,9 +121,17 @@ FAQ
   I'll just commit all the changes..._  
   __No.__ Stage the files one at a time with `git add [file]` and commit them 
   the right way, with meaningful messages. You will thank yourself later when 
-  you can easily find that tiny bug in the codebase. If you accidentally stage 
-  too many changes, you can "unstage" files with `git reset` or `git reset 
-  [file]` for just one file.
+  you can easily find any tiny bug that shows up in the codebase. If you 
+  accidentally stage too many changes, you can "unstage" files with `git reset` 
+  or `git reset [file]` for just one file.
 - _Ughhh all the changes I've made since the last commit were completely wrong 
   and I need to toss them_  
   `git reset --hard` will do the trick.
+- _Ahhh the internet's down but I want to make a new repo I should just add a 
+  new folder to the robotics repository_  
+  `git init [repository name]` will make a local git repository that can be 
+  uploaded to Github later.
+- *OMG git keeps uploading these useless .DS_Store files on Macs how do I kill 
+  them*
+  Create a file named .gitignore in the parent folder of the Git repository. 
+  This file should include the text `.DS_Store`.
