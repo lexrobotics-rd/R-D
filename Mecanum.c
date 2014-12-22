@@ -10,7 +10,7 @@
 Mecanum.c
 A testfile for developing Mecanum drive capabilities.
 
-LastUpdatedOn: 12/17
+LastUpdatedOn: 12/21
 LastUpdatedBy: Clive
 Status: the gyro capability is entirely untested (don't know if it compiles)
 */
@@ -64,7 +64,8 @@ t = ??? * currentOrientation; //Orientation is probably best measured with gyro;
 Rotation matrix, which changes the requested vFwd and vSide so they are corrected for rotation. (keeps nonrotating frame of reference)
 Random idea: https://www.youtube.com/watch?v=igaGWlMFdSw
 */
-void rotateXY(float &x, float &y, float t){
+void rotateXYDeg(float &x, float &y, float t){
+	t = t * 3.141592653589 / 180.0;
 	float oldx = x, oldy = y;
 	//cos and sin are radians
 	x = oldx * cos(t) - oldy * sin(t);
@@ -152,9 +153,10 @@ task main(){
 	  float translationY = (y1 + y2)/2.0;
 	  //Determines the difference of the vectors to determine the rotation.
 	  float rotation = (y1 - y2)/2.0;
-
-	  float currtheta = integrate(angleintr, HTGYROreadRot(gyro) * 3.141592653589 / 180.0);
-	  rotateXY(translationX, translationY, currtheta);
+	  
+	  //(gyro reading is in degrees)
+	  float currtheta = integrate(angleintr, HTGYROreadRot(gyro));//If gyro turns out badly, just set this back to 0.
+	  rotateXYDeg(translationX, translationY, currtheta);
 
 	  //If it's potentially going above 95, block it from doing so; otherwise just let the speed be proportional to the joysticks.
 	  //As a nice side effect, the division-by-zero isn't a problem anymore.
