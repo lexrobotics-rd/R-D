@@ -77,17 +77,17 @@ task main(){
   //int vFwd, vSide, vRot; //Forward, Side, and Rotational velocities
 
   int x1, y1, x2, y2;
-  
+
   //Assumes that it starts with forward pointing
   //in the desired permanent definition of "forward"
   //Integrator object for gyro angle
   INTR angleintr; initIntr(angleintr);
-  
+
   //Initiate gyro
   nSchedulePriority = kHighPriority;
   HTGYROstartCal(gyro);
   wait1Msec(1000); //and give it a bit of time
-  
+
   while(1){
     getJoystickSettings(joystick); //Get joystick settings and put them into variable "joystick". (not needed for joybtns I don't think)
 
@@ -143,19 +143,21 @@ task main(){
 
 		//ROTATION-CAPABLE AUGMENTED-TANK-DRIVE
 
-	  x1 = normalize(joystick.joy1_x1,4);
-	  y1 = normalize(joystick.joy1_y1,4);
-	  x2 = normalize(joystick.joy1_x2,4);
-	  y2 = normalize(joystick.joy1_y2,4);
+	  x1 = normalize(joystick.joy1_x1,8);
+	  y1 = normalize(joystick.joy1_y1,8);
+	  x2 = normalize(joystick.joy1_x2,8);
+	  y2 = normalize(joystick.joy1_y2,8);
+	nxtDisplayCenteredBigTextLine(5,"%f",joystick.joy1_x1);
 
 	  //Takes the averages of the x and y values for the joysticks, and makes them the x/y translations, so it acts just like augmented-tank original.
-	  float translationX = (x1 + x2)/2.0;
-	  float translationY = (y1 + y2)/2.0;
+	  float translationX = x1;(x1 + x2)/2.0;
+	  float translationY = y1;(y1 + y2)/2.0;
 	  //Determines the difference of the vectors to determine the rotation.
-	  float rotation = (y1 - y2)/2.0;
-	  
-	  //(gyro reading is in degrees)
-	  float currtheta = integrate(angleintr, HTGYROreadRot(gyro));//If gyro turns out badly, just set this back to 0.
+	  float rotation = x2;(y1 - y2)/2.0;
+
+	  //(gyro reading is in degrees, so the integral is too)
+	  float currtheta = integrate(angleintr, HTGYROreadRot(gyro));nxtDisplayCenteredBigTextLine(3,"%f", integrate(angleintr, HTGYROreadRot(gyro)));//If gyro turns out badly, just set this back to 0.
+	  //writeDebugStreamLine("%f %f", translationX, translationY);
 	  rotateXYDeg(translationX, translationY, currtheta);
 
 	  //If it's potentially going above 95, block it from doing so; otherwise just let the speed be proportional to the joysticks.
@@ -163,10 +165,10 @@ task main(){
 	  float JoyToWheel = min(95.0 / (abs(translationY) + abs(translationX) + abs(rotation)), 1.0);
 
 	  //used to normalize for protecting motors from fluctuations; now we don't so motors don't lock up and drag.
-	  motor[motorFrontLeft] = (JoyToWheel * (translationY + translationX - rotation));
-	  motor[motorFrontRight] = (JoyToWheel * (translationY - translationX + rotation));
-	  motor[motorBackLeft] = (JoyToWheel * (translationY - translationX - rotation));
-	  motor[motorBackRight] = (JoyToWheel * (translationY + translationX + rotation));
+	  motor[motorFrontLeft] = (JoyToWheel * (translationY + translationX + rotation));
+	  motor[motorFrontRight] = (JoyToWheel * (translationY - translationX - rotation));
+	  motor[motorBackLeft] = (JoyToWheel * (translationY - translationX + rotation));
+	  motor[motorBackRight] = (JoyToWheel * (translationY + translationX - rotation));
 
 		/*
 		Encoder speculations:
