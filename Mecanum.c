@@ -10,9 +10,13 @@
 Mecanum.c
 A testfile for developing Mecanum drive capabilities.
 
-LastUpdatedOn: 12/21
-LastUpdatedBy: Clive
-Status: the gyro capability is entirely untested (don't know if it compiles)
+LastUpdatedOn: 12/22
+LastUpdatedBy: Clive/Noah/Eula/Kara/etc.
+Status: Gyro thingy works (drifts ~15deg/min), but Lyle can't get his head around driving oriented to the field.
+
+TIP: when operating the ROBOTC FTC control thing, and the joystick input just doesn't work, 
+try pressing All Stopped, then Teleop Ready and Teleop Running again, and it will work.
+("If you believe in magic, you might just be coding in ROBOTC")
 */
 
 
