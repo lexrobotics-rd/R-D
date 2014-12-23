@@ -77,6 +77,27 @@ void rotateXYDeg(float &x, float &y, float t){
 }
 
 
+//Translates while rotating. You have to call it in the while loop. May be useful during autonomous, for speed.
+//May want to split the integration thingy off into a separate task that updates a global variable.
+void translateRotate(float vx, float vy, float vt, INTR& angleintr){
+	  //(gyro reading is in degrees, so the integral is too)
+	  float currtheta = integrate(angleintr, HTGYROreadRot(gyro));
+	  rotateXYDeg(vx, vy, currtheta);
+	  
+	  //If it's potentially going above 95, block it from doing so; otherwise just let the speed be proportional to the joysticks.
+	  //As a nice side effect, the division-by-zero isn't a problem anymore.
+	  float JoyToWheel = min(95.0 / (abs(vx) + abs(vy) + abs(vt)), 1.0);
+
+	  //used to normalize for protecting motors from fluctuations; now we don't so motors don't lock up and drag.
+	  motor[motorFrontLeft] = (JoyToWheel * (vy + vx + rotation));
+	  motor[motorFrontRight] = (JoyToWheel * (vy - vx - rotation));
+	  motor[motorBackLeft] = (JoyToWheel * (vy - vx + rotation));
+	  motor[motorBackRight] = (JoyToWheel * (vy + vx - rotation));
+}
+
+
+
+
 task main(){
   //int vFwd, vSide, vRot; //Forward, Side, and Rotational velocities
 
@@ -162,7 +183,8 @@ task main(){
 	  float rotation = (y1 - y2)/2.0;
 
 	  //(gyro reading is in degrees, so the integral is too)
-	  float currtheta = integrate(angleintr, HTGYROreadRot(gyro));nxtDisplayCenteredBigTextLine(3,"%f", integrate(angleintr, HTGYROreadRot(gyro)));//If gyro turns out badly, just set this back to 0.
+	  float currtheta = integrate(angleintr, HTGYROreadRot(gyro));//If gyro turns out badly, just set this back to 0.
+	  nxtDisplayCenteredBigTextLine(3,"%f", integrate(angleintr, HTGYROreadRot(gyro)));
 	  //writeDebugStreamLine("%f %f", translationX, translationY);
 	  rotateXYDeg(translationX, translationY, currtheta);
 
