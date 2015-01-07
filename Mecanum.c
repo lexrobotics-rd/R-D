@@ -10,43 +10,22 @@
 Mecanum.c
 A testfile for developing Mecanum drive capabilities.
 
-LastUpdatedOn: 12/22
-LastUpdatedBy: Clive/Noah/Eula/Kara/etc.
-Status: Gyro thingy works (drifts ~15deg/min), but Lyle can't get his head around driving oriented to the field.
+LastUpdatedOn: 1/7
+LastUpdatedBy: Clive
+Status: Added "encoders" for fwd/side/rot, and outputs it. Haven't tried compiling.
 
 TIP: when operating the ROBOTC FTC control thing, and the joystick input just doesn't work, 
 try pressing All Stopped, then Teleop Ready and Teleop Running again, and it will work.
 ("If you believe in magic, you might just be coding in ROBOTC")
 */
 
-
-/*
-MOUNTING THE WHEELS:
------Critically, the rollers must be parallel to the slashes in the diagram.-----
------Or maybe not so critically??-----
-[\\]   [fwd]    [//]
-[\\]            [//]
-[\\]            [//]
-
-[left]       [right]
-
-[//]            [\\]
-[//]            [\\]
-[//]   [back]   [\\]
-*/
-
 #include "JoystickDriver.c"
 #include "drivers/hitechnic-gyro.h"
 #include "lib/T4Calculus.h"
 
+
 float normalize(float x, float limit){
 	if(abs(x) < abs(limit)) return 0; else return x;
-}
-
-
-int max(int a, int b){
-	if(a > b) return a;
-	else return b;
 }
 
 float min(float a, float b){
@@ -68,7 +47,7 @@ t = ??? * currentOrientation; //Orientation is probably best measured with gyro;
 Rotation matrix, which changes the requested vFwd and vSide so they are corrected for rotation. (keeps nonrotating frame of reference)
 Random idea: https://www.youtube.com/watch?v=igaGWlMFdSw
 */
-void rotateXYDeg(float &x, float &y, float t){
+void rotateXYByDeg(float &x, float &y, float t){
 	t = t * 3.141592653589 / 180.0;
 	float oldx = x, oldy = y;
 	//cos and sin are radians
@@ -76,9 +55,10 @@ void rotateXYDeg(float &x, float &y, float t){
 	y = oldx * sin(t) + oldy * cos(t);
 }
 
-
-//Translates while rotating. You have to call it in the while loop. May be useful during autonomous, for speed.
-//May want to split the integration thingy off into a separate task that updates a global variable.
+//[[doesn't work yet!]]
+//Translates while rotating. You have to call it in the while loop so it can constantly update itself.
+//May be useful during autonomous, for speed (turn while moving and holding tube)
+//May want to split the integration thingy off into a separate task that updates a global variable for theta.
 void translateRotate(float vx, float vy, float vt, INTR& angleintr){
 	  //(gyro reading is in degrees, so the integral is too)
 	  float currtheta = integrate(angleintr, HTGYROreadRot(gyro));
@@ -88,7 +68,7 @@ void translateRotate(float vx, float vy, float vt, INTR& angleintr){
 	  //As a nice side effect, the division-by-zero isn't a problem anymore.
 	  float JoyToWheel = min(95.0 / (abs(vx) + abs(vy) + abs(vt)), 1.0);
 
-	  //used to normalize for protecting motors from fluctuations; now we don't so motors don't lock up and drag.
+	  //we originally normalized for protecting motors from fluctuations; now we don't so motors don't lock up and drag.
 	  motor[motorFrontLeft] = (JoyToWheel * (vy + vx + rotation));
 	  motor[motorFrontRight] = (JoyToWheel * (vy - vx - rotation));
 	  motor[motorBackLeft] = (JoyToWheel * (vy - vx + rotation));
@@ -105,10 +85,13 @@ task main(){
 
   //Assumes that it starts with forward pointing
   //in the desired permanent definition of "forward"
-  //Integrator object for gyro angle
-  INTR angleintr; initIntr(angleintr);
+  //Integrator object for gyro angle and fwd, side, and rot positions
+  INTR gyrointr; initIntr(gyrointr);
+  INTR fwdintr; initIntr(fwdintr);
+  INTR sideintr; initIntr(sideintr);
+  INTR rotintr; initIntr(rotintr);
 
-  //nMotorPIDSpeedCtrl?
+  //nMotorPIDSpeedCtrl? //neverest must have max output 78, because hitechnic encoders expect more ticks. http://www.cougarrobot.com/index.php?option=com_content&view=article&id=331%3Aandymark-neverest-motor-notes&catid=92%3Aftc-hardware&Itemid=140
 
   //Initiate gyro
   nSchedulePriority = kHighPriority;
@@ -116,100 +99,67 @@ task main(){
   wait1Msec(1000); //and give it a bit of time
 
   while(1){
-    getJoystickSettings(joystick); //Get joystick settings and put them into variable "joystick". (not needed for joybtns I don't think)
-
-    /*
-    //ORIGINAL FWD/SIDE/ROT JOYSTICKING SYSTEM
-
-	  //(Each joystick value is between -128 and 128.)
-	  //Normalize to make sure drift doesn't happen when joystick values are slightly off.
-		vFwd = normalize(joystick.joy1_y1,10); //Moves forward/backward based on the left-side joystick forward/backward direction.
-		vSide = normalize(joystick.joy1_x1,10); //Moves side-to-side based on the left-side joystick sideways direction.
-		vRot = normalize(joystick.joy1_x2,10); //Rotates based on the right-side joystick sideways direction.
-
-	  //The magic Mecanum additions and subtractions, derived via lots of diagrams and logic.
-	  //  Fwd is obvious - all the wheels have to go forward.
-	  //  Side is because if you spin front wheels in opposite directions, they will move to the side,
-	  //    and you must spin the back wheels in the opposite opposite directions to move to the same side.
-	  //  Rotation is similar - to move the front wheels and back wheels to different sides, move them in the same opposite directions.
-	  //    It's probably quite difficult to quantify with encoders etc. exactly what's going on with rotation, so gyros are good.
-	  //    Come to think of it quantifying diagonal translation may also be awkward.
-	   	motor[motorFrontLeft] = normalize(JoyToWheel * (vFwd + vSide - vRot),10);
-	    motor[motorFrontRight] = normalize(JoyToWheel * (vFwd - vSide + vRot),10);
-	    motor[motorBackLeft] = normalize(JoyToWheel * (vFwd - vSide - vRot),10);
-	   	motor[motorBackRight] = normalize(JoyToWheel * (vFwd + vSide + vRot),10);
-    */
-
-
-
-    /*
-    //FANCY NEW AUGMENTED-TANK JOYSTICKING SYSTEM
-
-	  x1 = normalize(joystick.joy1_x1,10);
-	  x2 = normalize(joystick.joy1_x2,10);
-	  y1 = normalize(joystick.joy1_y1,10);
-	  y2 = normalize(joystick.joy1_y2,10);
-
-	  //Find the maximum possible combination that we use in the formula, and normalize to make it 95 (less than 100, to be safe about it).
-	  //	Because if it goes over 100, it'll truncate and it'll mess up alignment of motion.
-	  //	Joystick values are from -128 to 128, and there are three that can add up together, so divide by 3 to normalize.
-	  //	Motor values are from -100 to 100.
-	  float JoyToWheel = 95.0 / max(max(max(abs(y2 + x2),abs(y1 - x1)),max(abs(y2 - x1),abs(y2 + x2))), 10);
-
-		//The Normalizes are necessary to prevent motor jerking back and forth on small values.
-	  //Translation is achieved by moving both joysticks in the same direction.
-	  //Rotation is achieved by having any difference in the joysticks (e.g. typical tank-drive turning.)
-	  motor[motorFrontLeft] = normalize(y2 + x2,10) * JoyToWheel;
-	  motor[motorFrontRight] = normalize(y1 - x1,10) * JoyToWheel;
-	  motor[motorBackLeft] = normalize(y2 - x1,10) * JoyToWheel;
-	  motor[motorBackRight] = normalize(y1 + x2,10) * JoyToWheel;
-		//This system does not lend itself to rotation-while-translating, since it's hard to track x and y translational components.
-		*/
-
-
-
-		//ROTATION-CAPABLE AUGMENTED-TANK-DRIVE
-
+	  //ROTATION-CAPABLE AUGMENTED-TANK-DRIVE (see git history for previous versions)
+	  
+      getJoystickSettings(joystick);
+	  
+	  
+	  //-------------GET JOYSTICK VALUES-------------//
 	  x1 = normalize(joystick.joy1_x1,3);
 	  y1 = normalize(joystick.joy1_y1,3);
 	  x2 = normalize(joystick.joy1_x2,3);
 	  y2 = normalize(joystick.joy1_y2,3);
-	nxtDisplayCenteredBigTextLine(5,"%f",joystick.joy1_x1);
-
+	  
+	  
+	  //-------------CALCULATE INITIAL VALUES-------------//
+	  //Get whatever values we need in the way we need for our particular control method.
 	  //Takes the averages of the x and y values for the joysticks, and makes them the x/y translations, so it acts just like augmented-tank original.
 	  float translationX = (x1 + x2)/2.0;
 	  float translationY = (y1 + y2)/2.0;
-	  //Determines the difference of the vectors to determine the rotation.
+	  //Determines the difference of the vectors to determine the rotation component.
 	  float rotation = (y1 - y2)/2.0;
-
-	  //(gyro reading is in degrees, so the integral is too)
-	  float currtheta = integrate(angleintr, HTGYROreadRot(gyro));//If gyro turns out badly, just set this back to 0.
-	  nxtDisplayCenteredBigTextLine(3,"%f", integrate(angleintr, HTGYROreadRot(gyro)));
-	  //writeDebugStreamLine("%f %f", translationX, translationY);
-	  rotateXYDeg(translationX, translationY, currtheta);
-
-	  //If it's potentially going above 95, block it from doing so; otherwise just let the speed be proportional to the joysticks.
+	  
+	  
+	  //-------------NORMALIZE-------------//
+	  //If it's potentially going above 95 (our artificially imposed max-value), block it from doing so.
+	  //Otherwise, just let the speed be proportional to the joystick value.
 	  //As a nice side effect, the division-by-zero isn't a problem anymore.
 	  float JoyToWheel = min(95.0 / (abs(translationY) + abs(translationX) + abs(rotation)), 1.0);
-
-	  //used to normalize for protecting motors from fluctuations; now we don't so motors don't lock up and drag.
-	  motor[motorFrontLeft] = (JoyToWheel * (translationY + translationX + rotation));
-	  motor[motorFrontRight] = (JoyToWheel * (translationY - translationX - rotation));
-	  motor[motorBackLeft] = (JoyToWheel * (translationY - translationX + rotation));
-	  motor[motorBackRight] = (JoyToWheel * (translationY + translationX - rotation));
-
-		/*
-		Encoder speculations:
-		For encoders, reverse-solving the original motor formulae:
-		(I seriously doubt this will do anything correctly, especially on rotation.)
-		*/
-		//double deltaFwd = k * (deltaEncFL + deltaEncFR)/2.0;
-		//double deltaSide = k * (deltaEncFL - deltaEncBL)/2.0;
-		//double deltaRot = k * (deltaEncFR - deltaEncBL)/2.0;
-		/*
-		(BR should equal FL + FR - BL, so BR is redundant for the formula)
-		(After doing the deltas, add them to totals so we can track fwd, side, and rot motion.
-			Or actually just adding the vFwd, vSide, and vRot is usually easier and more accurate for that, but encoders don't drift.)
-		*/
+	  translationX *= JoyToWheel;
+	  translationY *= JoyToWheel;
+	  rotation *= JoyToWheel;
+	  
+	  
+	  //-------------INTEGRATE COMPONENTS-------------//
+	  //What even are the units for these? Gyro is in degrees, but fwd, side, rot are in... motorspeed*second. Whatever that is.
+	  //AndyMark NeveRest motors supposedly do 129 RPM, but also 150RPM. The mecanums are ~10.5cm.
+	  nxtDisplayTextLine(1,"'Encoders'");
+	  nxtDisplayTextLine(2,"Gyro: %f", integrate(angleintr, HTGYROreadRot(gyro)));
+	  nxtDisplayTextLine(3,"Fwd: %f", integrate(fwdintr, translationX));
+	  nxtDisplayTextLine(4,"Side: %f", integrate(sideintr, translationY));
+	  nxtDisplayTextLine(5,"Rot: %f", integrate(rotintr, rotation));
+	  
+	  //For encoding, reverse-solving the motor formulae:
+	  //Would using these instead of using the original translationX translationY rotation values be more accurate?
+	  //double deltaFwd = k * (deltaEncFL + deltaEncFR)/2.0;
+	  //double deltaSide = k * (deltaEncFL - deltaEncBL)/2.0;
+	  //double deltaRot = k * (deltaEncFR - deltaEncBL)/2.0;
+	  
+	  
+	  //-------------ROTATION-INVARIANCE-------------// (has to be after integration of components)
+	  //Gyro reading is in degrees, so the integral is too.
+	  float currtheta = integrate(gyrointr, HTGYROreadRot(gyro));//If gyro turns out badly, just set this back to 0.
+	  //Translation is now invariant to rotation. Thus, when you do the integrations above it'll actually be moving the thing forward.
+	  rotateXYByDeg(translationX, translationY, currtheta);
+	  
+	  
+	  //-------------SET MOTORS-------------//
+	  //we originally normalized to protect motors from fluctuations; now we don't so motors don't lock up and drag.
+	  motor[motorFrontLeft] = translationY + translationX + rotation;
+	  motor[motorFrontRight] = translationY - translationX - rotation;
+	  motor[motorBackLeft] = translationY - translationX + rotation;
+	  motor[motorBackRight] = translationY + translationX - rotation;
+	  
+	  wait1Msec(10);
   }
 }
