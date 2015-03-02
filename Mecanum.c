@@ -15,7 +15,7 @@ LastUpdatedBy: Clive
 Status: Added "encoders" for fwd/side/rot, and outputs it. Haven't tried compiling. And also added thresholding for rotation to avoid drift.
 Todo: Separate into a Mecanum.h file (function mecanumJoystickControl)? Get TranslateRotate for Autonomous to work.
 
-TIP: when operating the ROBOTC FTC control thing, and the joystick input just doesn't work, 
+TIP: when operating the ROBOTC FTC control thing, and the joystick input just doesn't work,
 try pressing All Stopped, then Teleop Ready and Teleop Running again, and it will work.
 ("If you believe in magic, you might just be coding in ROBOTC")
 
@@ -24,6 +24,7 @@ Random: https://www.youtube.com/watch?v=igaGWlMFdSw "Octocanum" Mecanum + lowera
 
 #include "JoystickDriver.c"
 #include "drivers/hitechnic-gyro.h"
+#include "lib/Nonviolence.h"
 #include "lib/T4Calculus.h"
 
 
@@ -73,6 +74,8 @@ void translateRotate(float vx, float vy, float vt, INTR& angleintr){
 
 
 task main(){
+	startTask(nonviolenceTask);
+
   int x1, y1, x2, y2;
 
   //Assumes that it starts with forward pointing
@@ -94,16 +97,16 @@ task main(){
 
   while(1){
 	  //ROTATION-CAPABLE AUGMENTED-TANK-DRIVE (see git history for previous versions)
-	  
-	  
+
+
 	  //-------------GET JOYSTICK VALUES-------------//
       getJoystickSettings(joystick);
 	  x1 = thresholding(joystick.joy1_x1,3);
 	  y1 = thresholding(joystick.joy1_y1,3);
 	  x2 = thresholding(joystick.joy1_x2,3);
 	  y2 = thresholding(joystick.joy1_y2,3);
-	  
-	  
+
+
 	  //-------------CALCULATE INITIAL VALUES-------------//
 	  //Get whatever values we need in the way we need for our particular control method.
 	  //Takes the averages of the x and y values for the joysticks, and makes them the x/y translations, so it acts just like augmented-tank original.
@@ -113,8 +116,8 @@ task main(){
 	  //Determines the difference of the vectors (actually, only the difference of the y components) to determine the rotation component.
 	  //Because drift happens when you shove both forward, we'll threshold it heavily.
 	  float rotation = thresholding((y1 - y2)/2.0, 20);
-	  
-	  
+
+
 	  //-------------NORMALIZE-------------//
 	  //If it's potentially going above our artificially imposed max-value (to help PID or something), block it from doing so.
 	  //Otherwise, just let the speed be proportional to the joystick value.
@@ -123,40 +126,41 @@ task main(){
 	  translationX *= JoyToWheel;
 	  translationY *= JoyToWheel;
 	  rotation *= JoyToWheel;
-	  
-	  
+
+
 	  //-------------INTEGRATE COMPONENTS-------------// (after all changes to the values are done, but before any changes to the frame of reference - because we want this to be relative to the robot's frame (right?))
 	  //What even are the units for these? Gyro is in degrees, but fwd, side, rot are in... motorspeed*second. Whatever that is.
 	  //AndyMark NeveRest motors supposedly do 129 RPM, but also 150RPM. The mecanums are ~10.5cm (diameter).
 	  //We'll just have to figure out the constant factors empirically.
 	  nxtDisplayTextLine(1,"'Encoders'");
-	  nxtDisplayTextLine(2,"Gyro: %f", integrate(angleintr, HTGYROreadRot(gyro)));
+	  nxtDisplayTextLine(2,"Gyro: %f", gyrointr.integral);
 	  nxtDisplayTextLine(3,"Fwd: %f", integrate(fwdintr, translationX));
 	  nxtDisplayTextLine(4,"Side: %f", integrate(sideintr, translationY));
 	  nxtDisplayTextLine(5,"Rot: %f", integrate(rotintr, rotation));
-	  
+
 	  //For encoding, reverse-solving the motor formulae:
 	  //Would using these instead of using the original translationX translationY rotation values be more accurate?
 	  //double deltaFwd = k * (deltaEncFL + deltaEncFR)/2.0;
 	  //double deltaSide = k * (deltaEncFL - deltaEncBL)/2.0;
 	  //double deltaRot = k * (deltaEncFR - deltaEncBL)/2.0;
-	  
-	  
+
+
 	  //-------------ROTATION-INVARIANCE-------------// (has to be after integration of components, because this changes the frame of reference to the absolute frame)
 	  //Gyro reading is in degrees, so the integral is too.
 	  float currtheta = integrate(gyrointr, HTGYROreadRot(gyro));
 	  //Translation is now invariant to rotation. Thus, when you do the integrations above it'll actually be moving the thing forward.
 	  //rotateXYVecDeg(translationX, translationY, currtheta);
 	  //Drivers don't like this, so it's commented out. But feel free to uncomment.
-	  
-	  
+
+
 	  //-------------SET MOTORS-------------//
 	  //we originally thresholded to protect motors from fluctuations; now we don't so motors don't lock up and drag, because Mecanum is sensitive.
-	  motor[motorFrontLeft] = translationY + translationX + rotation;
-	  motor[motorFrontRight] = translationY - translationX - rotation;
-	  motor[motorBackLeft] = translationY - translationX + rotation;
-	  motor[motorBackRight] = translationY + translationX - rotation;
-	  
+	  nonviolence(motorFrontLeft, translationY + translationX + rotation, NV_MODE_LINEAR);
+	  nonviolence(motorFrontRight, translationY - translationX - rotation, NV_MODE_LINEAR);
+	  nonviolence(motorBackLeft, translationY - translationX + rotation, NV_MODE_LINEAR);
+	  nonviolence(motorBackRight, translationY + translationX - rotation, NV_MODE_LINEAR);
+	  //I have strong doubts that nonviolence will work without bigtime messing up encoders. And maybe everything.
+
 	  //And wait so we don't do so much load on the NXT (?), or just overcalculation on the integral might mess it up because of time granularity
 	  wait1Msec(10);
   }
