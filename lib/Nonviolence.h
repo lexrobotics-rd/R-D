@@ -33,7 +33,7 @@ This also contains a single function, and if you ever run up against the ROBOTC 
 // STUFF YOU MIGHT WANT TO DEFINE
 //Must all three be positive.
 const int NV_tick = 100; //Milliseconds per clocktick of the Nonviolence task.
-const int NV_acc = 1; //How much to increase/decrease the motor per NV_tick milliseconds. Serves as maximum acceleration for nonlinear modes.
+const int NV_acc = 30; //How much to increase/decrease the motor per NV_tick milliseconds. Serves as maximum acceleration for nonlinear modes.
 const int NV_max = 90; //built in PID sometimes deals badly with motor = 100
 
 // STUFF YOU SHOULDN'T TOUCH
